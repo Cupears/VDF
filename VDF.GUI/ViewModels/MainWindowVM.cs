@@ -1900,9 +1900,11 @@ Non-Windows setup:
 		public void SelectAllInGroup(Guid groupId) {
 			var groupItems = Duplicates.Where(d => d.ItemInfo.GroupId == groupId).ToList();
 			if (groupItems.Count == 0) return;
+			// Toggle: if all items are already checked, uncheck them; otherwise check them all.
+			bool allChecked = groupItems.All(i => i.Checked);
 			using var _ = BeginSelectionUndoBatch();
 			foreach (var item in groupItems)
-				item.Checked = true;
+				item.Checked = !allChecked;
 		}
 
 		public ReactiveCommand<Unit, Unit> LoadThumbnailsForCheckedItemsCommand => ReactiveCommand.CreateFromTask(async () => {
