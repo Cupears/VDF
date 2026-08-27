@@ -635,6 +635,7 @@
 	"Results.Header.PreviewResizeTip": "Drag to resize — thumbnails grow with the column",
 	"Results.Group.Compare": "Compare",
 	"Results.Group.KeepBest": "Keep best",
+	"Results.Group.SelectAll": "Select all",
 	"Results.Row.Best": "BEST",
 	"Results.Row.BestTip": "Highest quality in this group, decided by: {0}. The ranking order can be changed under Auto-select > Check Lowest Quality.",
 	"Results.Row.BestTipTied": "Highest quality in this group; the files are effectively equal on all quality criteria. The ranking order can be changed under Auto-select > Check Lowest Quality.",

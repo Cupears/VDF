@@ -1897,6 +1897,14 @@ Non-Windows setup:
 					item.Checked = true;
 		}
 
+		public void SelectAllInGroup(Guid groupId) {
+			var groupItems = Duplicates.Where(d => d.ItemInfo.GroupId == groupId).ToList();
+			if (groupItems.Count == 0) return;
+			using var _ = BeginSelectionUndoBatch();
+			foreach (var item in groupItems)
+				item.Checked = true;
+		}
+
 		public ReactiveCommand<Unit, Unit> LoadThumbnailsForCheckedItemsCommand => ReactiveCommand.CreateFromTask(async () => {
 			var items = Duplicates.Where(d => d.Checked).Select(vm => vm.ItemInfo).ToList();
 			if (items.Count == 0) return;

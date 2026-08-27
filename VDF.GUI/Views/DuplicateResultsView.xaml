@@ -474,6 +474,11 @@
                     Command="{Binding $parent[UserControl].((vm:MainWindowVM)DataContext).KeepBestInGroupHeaderCommand}"
                     CommandParameter="{Binding}"
                     Content="{Binding Source={x:Static local:App.Lang}, Path=[Results.Group.KeepBest]}" />
+                <Button
+                    Classes="group-action"
+                    Command="{Binding $parent[UserControl].((vm:MainWindowVM)DataContext).SelectAllInGroupHeaderCommand}"
+                    CommandParameter="{Binding}"
+                    Content="{Binding Source={x:Static local:App.Lang}, Path=[Results.Group.SelectAll]}" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="8,0,0,0">
                 <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Title}" />
