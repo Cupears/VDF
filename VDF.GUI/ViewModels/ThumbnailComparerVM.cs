@@ -330,6 +330,7 @@ namespace VDF.GUI.ViewModels {
 
 		public ReactiveCommand<Unit, Unit>? PreviousGroupCommand { get; }
 		public ReactiveCommand<Unit, Unit>? NextGroupCommand { get; }
+		public ReactiveCommand<Unit, Unit>? SelectAllAndNextGroupCommand { get; }
 		public ReactiveCommand<Unit, Unit> CancelThumbnailLoadingCommand { get; }
 
 		/// <summary>
@@ -398,6 +399,15 @@ namespace VDF.GUI.ViewModels {
 			if (_groupNavigator != null && _currentGroupId.HasValue) {
 				PreviousGroupCommand = ReactiveCommand.CreateFromTask(() => SwitchGroupAsync(forward: false));
 				NextGroupCommand = ReactiveCommand.CreateFromTask(() => SwitchGroupAsync(forward: true));
+				SelectAllAndNextGroupCommand = ReactiveCommand.CreateFromTask(async () => {
+					if (_currentGroupId is null) return;
+					var gid = _currentGroupId.Value;
+					ApplicationHelpers.MainWindowDataContext.SelectAllInGroup(gid);
+					if (CanNavigateGroups)
+						await SwitchGroupAsync(forward: true);
+					else
+						ShowMessage(App.Lang["Comparer.NoMoreGroups"]);
+				});
 			}
 
 			KeepLeftCommand = ReactiveCommand.Create(() => ApplyDecision(CullingPairFlow.Decision.KeepLeft));

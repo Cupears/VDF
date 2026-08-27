@@ -133,6 +133,10 @@ namespace VDF.GUI.Views {
 					vm.NotAMatchCommand.Execute().Subscribe();
 					e.Handled = true;
 					break;
+				case Key.S:
+					vm.SelectAllAndNextGroupCommand?.Execute().Subscribe();
+					e.Handled = true;
+					break;
 				case Key.Space:
 					vm.SkipPairCommand.Execute().Subscribe();
 					e.Handled = true;
