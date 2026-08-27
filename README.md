@@ -372,7 +372,7 @@ The optional AI components are downloaded separately on first use and carry thei
 
 # Building
 - .NET 10.x
-- Visual Studio 2022 or later is recommended
+- Visual Studio 2026
 
 # Contributing
 - Create a pull request for each addition or fix — do not merge them into one PR
