@@ -6,7 +6,7 @@ Video Duplicate Finder is a cross-platform software to find duplicated video (an
 - Fast scanning speed
 - Ultra fast rescan
 - Optional calling ffmpeg functions natively for even more speed
-- Finds duplicate videos / images based on similarity (optional pHash comparison for videos at zero cost; images are compared on a grayscale representation)
+- Finds duplicate videos / images based on similarity (optional scan against pHash at zero cost)
 - Partial clip detection — finds when a shorter video is a partial clip of a longer one (audio fingerprinting)
 - Optional AI matching — neural image embeddings find cropped, mirrored, zoomed and heavily edited copies the classic methods miss, and locate trimmed clips inside longer recordings without needing audio. Runs 100% locally.
 - Desktop GUI (Windows, Linux, macOS)
@@ -128,10 +128,6 @@ If macOS still refuses to launch the bundle (e.g. "library load disallowed by sy
 xattr -cr "Video Duplicate Finder.app"
 codesign --force --deep --sign - "Video Duplicate Finder.app"
 ```
-
-### Why did two files match?
-
-Each result row's **details (ⓘ)** panel has a **"Why similar?"** button. It opens a report showing which detection method and score grouped the two files (grayscale for images, or pHash for videos) and how close they came to the similarity threshold — useful when a pair reads **100%** yet looks different, since images are judged on a downscaled grayscale representation rather than the full-resolution picture.
 
 ---
 
