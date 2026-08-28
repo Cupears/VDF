@@ -748,11 +748,9 @@ namespace VDF.GUI.ViewModels {
 				// identical to the never-scanned state.
 				ShowNoDuplicatesNotice = SetupNotice.ShowAfterScanDone(Duplicates.Count);
 
-				if (SettingsFile.Instance.GeneratePreviewThumbnails) {
-					ShowThumbnailRetrievalProgressBar = true;
-					ThumbnailRetrievalProgressText = "Starting to retrieve thumbnails for preview";
-					Scanner.RetrieveThumbnails();
-				}
+				// Thumbnails load lazily: the results view reports the visible + prefetch rows
+				// and we extract only those (the previous scan's requested set is stale here).
+				ResetLazyThumbnailState();
 
 				BuildActiveResultsView();
 				RebuildSearchPathIndex();
@@ -1710,6 +1708,8 @@ Non-Windows setup:
 			Scanner.Settings.UseNativeFfmpegBinding = SettingsFile.Instance.UseNativeFfmpegBinding;
 			Scanner.Settings.IgnoreBlackPixels = SettingsFile.Instance.IgnoreBlackPixels;
 			Scanner.Settings.IgnoreWhitePixels = SettingsFile.Instance.IgnoreWhitePixels;
+			Scanner.Settings.IgnoreBlackThreshold = SettingsFile.Instance.IgnoreBlackThreshold;
+			Scanner.Settings.IgnoreWhiteThreshold = SettingsFile.Instance.IgnoreWhiteThreshold;
 			Scanner.Settings.CompareHorizontallyFlipped = SettingsFile.Instance.CompareHorizontallyFlipped;
 			Scanner.Settings.CustomDatabaseFolder = SettingsFile.Instance.CustomDatabaseFolder;
 			Scanner.Settings.DatabaseCheckpointIntervalMinutes = SettingsFile.Instance.DatabaseCheckpointIntervalMinutes;

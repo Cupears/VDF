@@ -346,6 +346,20 @@
                     <TextBlock FontSize="11" Opacity="0.6" HorizontalAlignment="Center"
                                Text="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.White]}" />
                   </StackPanel>
+                  <StackPanel Spacing="1" HorizontalAlignment="Center">
+                    <NumericUpDown Classes="stepper" Width="90" Minimum="0" Maximum="255" Increment="1"
+                                   ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.BlackThresholdTip]}"
+                                   Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=IgnoreBlackThreshold}" />
+                    <TextBlock FontSize="11" Opacity="0.6" HorizontalAlignment="Center"
+                               Text="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.BlackThreshold]}" />
+                  </StackPanel>
+                  <StackPanel Spacing="1" HorizontalAlignment="Center">
+                    <NumericUpDown Classes="stepper" Width="90" Minimum="0" Maximum="255" Increment="1"
+                                   ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.WhiteThresholdTip]}"
+                                   Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=IgnoreWhiteThreshold}" />
+                    <TextBlock FontSize="11" Opacity="0.6" HorizontalAlignment="Center"
+                               Text="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.WhiteThreshold]}" />
+                  </StackPanel>
                 </StackPanel>
               </views:SettingRow>
 

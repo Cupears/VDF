@@ -894,7 +894,12 @@
                   BorderBrush="{actipro:ThemeResource Container3BorderBrush}"
                   BorderThickness="1">
             <DockPanel LastChildFill="True">
-              <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0">
+              <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="8">
+                <Button Classes="group-action" FontSize="11.5"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Results.Details.WhySimilar]}"
+                        ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[Results.Details.WhySimilarTip]}"
+                        Command="{Binding $parent[UserControl].((vm:MainWindowVM)DataContext).WhySimilarCommand}"
+                        CommandParameter="{Binding Item}" />
                 <Button Classes="group-action" FontSize="11.5"
                         Content="{Binding Source={x:Static local:App.Lang}, Path=[Results.Details.Copy]}"
                         Command="{Binding $parent[UserControl].((vm:MainWindowVM)DataContext).CopyItemDetailsCommand}"

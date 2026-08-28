@@ -1,0 +1,63 @@
+<Window
+    x:Class="VDF.GUI.Views.WhySimilarView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:app="clr-namespace:VDF.GUI"
+    xmlns:vm="using:VDF.GUI.ViewModels"
+    x:DataType="vm:WhySimilarVM"
+    Title="{Binding Source={x:Static app:App.Lang}, Path=[Results.Details.WhySimilarTitle]}"
+    Width="760"
+    Height="560"
+    MinWidth="480"
+    MinHeight="320"
+    WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+        <!--  Intro: which pair, and the downscale caveat for images  -->
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,4,0,8"
+            MaxWidth="720"
+            FontSize="12"
+            Opacity="0.8"
+            TextWrapping="Wrap"
+            Text="{Binding Intro}" />
+
+        <!--  Working indicator  -->
+        <StackPanel
+            Grid.Row="1"
+            Margin="0,0,0,8"
+            Orientation="Horizontal"
+            Spacing="8"
+            IsVisible="{Binding IsWorking}">
+            <ProgressBar Width="140" Height="10" IsIndeterminate="{Binding IsWorking}" Maximum="1" Minimum="0" />
+            <TextBlock VerticalAlignment="Center" Text="{Binding WorkingText}" />
+        </StackPanel>
+
+        <!--  Report  -->
+        <TextBox
+            Grid.Row="2"
+            Margin="0,0,0,10"
+            IsReadOnly="True"
+            TextWrapping="Wrap"
+            AcceptsReturn="True"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            FontFamily="Consolas, Courier New, monospace"
+            Text="{Binding Report}" />
+
+        <!--  Buttons  -->
+        <StackPanel
+            Grid.Row="3"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal"
+            Spacing="8">
+            <Button
+                Command="{Binding CopyCommand}"
+                Content="{Binding Source={x:Static app:App.Lang}, Path=[Results.Details.WhySimilarCopy]}" />
+            <Button
+                Classes="accent"
+                Command="{Binding CloseCommand}"
+                Content="{Binding Source={x:Static app:App.Lang}, Path=[Results.Details.WhySimilarClose]}" />
+        </StackPanel>
+    </Grid>
+</Window>

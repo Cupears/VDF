@@ -72,6 +72,16 @@ namespace VDF.GUI.Views {
 			};
 			vm.ResultsAnchorProvider = CaptureScrollAnchor;
 			vm.ResultsScrollToRow = ScrollRowToViewportOffset;
+
+			// After the list is repopulated (new scan / filter / sort) layout shifts, so
+			// refresh the lazy-thumbnail request against the new visible window.
+			vm.ResultsRows.CollectionChanged += OnResultsRowsCollectionChanged;
+		}
+
+		void OnResultsRowsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
+			if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset ||
+				e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+				Avalonia.Threading.Dispatcher.UIThread.Post(RefreshVisibleThumbnails, Avalonia.Threading.DispatcherPriority.Loaded);
 		}
 
 		/// <summary>Row whose realized container is topmost in the viewport (partially visible counts), plus its viewport offset.</summary>
@@ -170,6 +180,10 @@ namespace VDF.GUI.Views {
 			resultsScrollViewer.PropertyChanged += (_, args) => {
 				if (args.Property == ScrollViewer.ViewportProperty)
 					SyncHeaderInset();
+				// Lazy thumbnails follow what the user can actually see: load (and prefetch
+				// a margin around) the rows realized as the list scrolls or resizes.
+				if (args.Property == ScrollViewer.OffsetProperty || args.Property == ScrollViewer.ViewportProperty)
+					RefreshVisibleThumbnailsDebounced();
 			};
 			if (!headerInsetHooked && this.FindControl<Border>("ColumnHeaderStrip") is { } header) {
 				headerInsetHooked = true;
@@ -179,6 +193,7 @@ namespace VDF.GUI.Views {
 				};
 			}
 			SyncHeaderInset();
+			RefreshVisibleThumbnails();
 		}
 
 		void SyncHeaderInset() {
@@ -194,6 +209,56 @@ namespace VDF.GUI.Views {
 			double inset = Math.Max(0, header.Bounds.Width - viewport);
 			if (Math.Abs(columns.Margin.Right - inset) > 0.5)
 				columns.Margin = new Thickness(0, 0, inset, 0);
+		}
+
+		// ── Lazy thumbnails: load only the rows the user can see (plus a prefetch margin) ──
+		// The ListBox is virtualized, so only viewport-neighbouring rows are realized. We
+		// report those DuplicateItemVMs to the VM, which extracts thumbnails for them; as
+		// the user scrolls, newly-realized rows get requested in turn. Debounced so a long
+		// scroll doesn't fire a request per frame.
+		Avalonia.Threading.DispatcherTimer? visibleThumbnailsTimer;
+		const int ThumbnailPrefetchRows = 12;
+
+		void RefreshVisibleThumbnailsDebounced() {
+			if (visibleThumbnailsTimer == null) {
+				visibleThumbnailsTimer = new Avalonia.Threading.DispatcherTimer {
+					Interval = TimeSpan.FromMilliseconds(60)
+				};
+				visibleThumbnailsTimer.Tick += (_, _) => {
+					visibleThumbnailsTimer.Stop();
+					RefreshVisibleThumbnails();
+				};
+			}
+			visibleThumbnailsTimer.Stop();
+			visibleThumbnailsTimer.Start();
+		}
+
+		void RefreshVisibleThumbnails() {
+			if (ViewModel is not { } vm) return;
+			if (resultsScrollViewer == null) return;
+
+			// Find the index range Avalonia realized for the current viewport.
+			int minIndex = int.MaxValue, maxIndex = int.MinValue;
+			foreach (var container in ResultsListControl.GetRealizedContainers()) {
+				int idx = ResultsListControl.IndexFromContainer(container);
+				if (idx < 0) continue;
+				minIndex = Math.Min(minIndex, idx);
+				maxIndex = Math.Max(maxIndex, idx);
+			}
+			if (minIndex == int.MaxValue || ResultsListControl.Items is not { Count: > 0 } items)
+				return;
+
+			// Expand with a prefetch margin so scrolling feels continuous instead of
+			// popping thumbnails in at the very edge of the viewport.
+			int lo = Math.Max(0, minIndex - ThumbnailPrefetchRows);
+			int hi = Math.Min(items.Count - 1, maxIndex + ThumbnailPrefetchRows);
+
+			List<DuplicateItemVM> visible = new();
+			for (int i = lo; i <= hi; i++)
+				if (items[i] is ResultsItemRow row)
+					visible.Add(row.Item);
+
+			vm.OnResultsVisibleItemsChanged(visible);
 		}
 
 		// Hover-diff. Tag carries the metric name(s), comma-separated: a two-line cell

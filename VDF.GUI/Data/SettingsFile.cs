@@ -172,6 +172,18 @@ namespace VDF.GUI.Data {
 			get => _IgnoreWhitePixels;
 			set => this.RaiseAndSetIfChanged(ref _IgnoreWhitePixels, value);
 		}
+		byte _IgnoreBlackThreshold = 0x20;
+		[JsonPropertyName("IgnoreBlackThreshold")]
+		public byte IgnoreBlackThreshold {
+			get => _IgnoreBlackThreshold;
+			set => this.RaiseAndSetIfChanged(ref _IgnoreBlackThreshold, Math.Clamp(value, (byte)0, (byte)255));
+		}
+		byte _IgnoreWhiteThreshold = 0xF0;
+		[JsonPropertyName("IgnoreWhiteThreshold")]
+		public byte IgnoreWhiteThreshold {
+			get => _IgnoreWhiteThreshold;
+			set => this.RaiseAndSetIfChanged(ref _IgnoreWhiteThreshold, Math.Clamp(value, (byte)0, (byte)255));
+		}
 		int _MaxDegreeOfParallelism = -1;
 		[JsonPropertyName("MaxDegreeOfParallelism")]
 		public int MaxDegreeOfParallelism {
@@ -830,6 +842,12 @@ namespace VDF.GUI.Data {
 			foreach (var n in xDoc.Descendants("IgnoreWhitePixels"))
 				if (bool.TryParse(n.Value, out var value))
 					Instance.IgnoreWhitePixels = value;
+			foreach (var n in xDoc.Descendants("IgnoreBlackThreshold"))
+				if (byte.TryParse(n.Value, out var value))
+					Instance.IgnoreBlackThreshold = value;
+			foreach (var n in xDoc.Descendants("IgnoreWhiteThreshold"))
+				if (byte.TryParse(n.Value, out var value))
+					Instance.IgnoreWhiteThreshold = value;
 			foreach (var n in xDoc.Descendants("CustomFFArguments"))
 				Instance.CustomFFArguments = n.Value;
 			foreach (var n in xDoc.Descendants("LastCustomSelectExpression"))

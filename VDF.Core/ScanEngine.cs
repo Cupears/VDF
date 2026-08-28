@@ -1528,12 +1528,14 @@ namespace VDF.Core {
 			byte[]?[] grayBytes = overrideGray ?? entry.compareGray!;
 			bool ignoreBlackPixels = Settings.IgnoreBlackPixels;
 			bool ignoreWhitePixels = Settings.IgnoreWhitePixels;
+			byte blackThreshold = Settings.IgnoreBlackThreshold;
+			byte whiteThreshold = Settings.IgnoreWhiteThreshold;
 			algorithms = DuplicateFlags.None;
 			difference = 1f;
 
 			if (entry.IsImage) {
 				difference = ignoreBlackPixels || ignoreWhitePixels ?
-								GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(grayBytes[0]!, compItem.compareGray![0]!, ignoreBlackPixels, ignoreWhitePixels) :
+								GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(grayBytes[0]!, compItem.compareGray![0]!, ignoreBlackPixels, ignoreWhitePixels, blackThreshold, whiteThreshold) :
 								GrayBytesUtils.PercentageDifference(grayBytes[0]!, compItem.compareGray![0]!);
 				bool isImageDuplicate = difference <= 1.0f - Settings.Percent / 100f;
 				// Images always compare by grayscale (single frame; the pHash quorum has
@@ -1615,6 +1617,8 @@ namespace VDF.Core {
 		}
 
 		bool TryCompareGrayVideos(byte[]?[] grayBytes, FileEntry compItem, bool ignoreBlackPixels, bool ignoreWhitePixels, out float difference) {
+			byte blackThreshold = Settings.IgnoreBlackThreshold;
+			byte whiteThreshold = Settings.IgnoreWhiteThreshold;
 			difference = 1f;
 			byte[]?[] compGray = compItem.compareGray!;
 			float differenceLimit = (1.0f - Settings.Percent / 100f) * grayBytes.Length;
@@ -1622,7 +1626,7 @@ namespace VDF.Core {
 			for (int j = 0; j < grayBytes.Length; j++) {
 				diffSum += ignoreBlackPixels || ignoreWhitePixels ?
 							GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(
-								grayBytes[j]!, compGray[j]!, ignoreBlackPixels, ignoreWhitePixels) :
+								grayBytes[j]!, compGray[j]!, ignoreBlackPixels, ignoreWhitePixels, blackThreshold, whiteThreshold) :
 							GrayBytesUtils.PercentageDifference(grayBytes[j]!, compGray[j]!);
 				if (diffSum > differenceLimit) // already exceeding maximum tolerated diff -> exit early
 					return false;
@@ -2713,7 +2717,7 @@ namespace VDF.Core {
 			}
 		}
 
-		public async Task RetrieveThumbnailsForItems(IEnumerable<DuplicateItem> items) {
+		public async Task RetrieveThumbnailsForItems(IEnumerable<DuplicateItem> items, CancellationToken cancellationToken = default) {
 			// Explicit reloads also refresh thumbnails whose extraction width is below the
 			// current setting (issue #777); the automatic post-scan pass does not.
 			int requiredWidth = Settings.ThumbnailMaxWidth > 0 ? Settings.ThumbnailMaxWidth : 100;
@@ -2726,7 +2730,7 @@ namespace VDF.Core {
 			Logger.Instance.Info($"Explicit thumbnail retry: starting for {dupList.Count} item(s).");
 			int loaded = 0, placeholders = 0, skippedMissing = 0;
 			try {
-				await Parallel.ForEachAsync(dupList, new ParallelOptions { MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, cancellationToken) => {
+				await Parallel.ForEachAsync(dupList, new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, cancellationToken) => {
 					List<byte[]>? list = null;
 					bool needsThumbnails = !Settings.IncludeMissingFiles || File.Exists(entry.Path);
 					List<TimeSpan>? timeStamps = null;
