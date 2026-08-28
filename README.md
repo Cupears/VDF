@@ -6,7 +6,7 @@ Video Duplicate Finder is a cross-platform software to find duplicated video (an
 - Fast scanning speed
 - Ultra fast rescan
 - Optional calling ffmpeg functions natively for even more speed
-- Finds duplicate videos / images based on similarity (optional scan against pHash at zero cost)
+- Finds duplicate videos / images based on similarity (optional pHash comparison for videos at zero cost; images are compared on a grayscale representation)
 - Partial clip detection — finds when a shorter video is a partial clip of a longer one (audio fingerprinting)
 - Optional AI matching — neural image embeddings find cropped, mirrored, zoomed and heavily edited copies the classic methods miss, and locate trimmed clips inside longer recordings without needing audio. Runs 100% locally.
 - Desktop GUI (Windows, Linux, macOS)
@@ -129,6 +129,10 @@ xattr -cr "Video Duplicate Finder.app"
 codesign --force --deep --sign - "Video Duplicate Finder.app"
 ```
 
+### Why did two files match?
+
+Each result row's **details (ⓘ)** panel has a **"Why similar?"** button. It opens a report showing which detection method and score grouped the two files (grayscale for images, or pHash for videos) and how close they came to the similarity threshold — useful when a pair reads **100%** yet looks different, since images are judged on a downscaled grayscale representation rather than the full-resolution picture.
+
 ---
 
 # CLI (Command-line Interface)
@@ -168,23 +172,35 @@ vdf-cli scan-and-compare \
 #### Common options
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--include <path>` | Directory to scan (repeatable) | required |
-| `--exclude <path>` | Directory to exclude (repeatable) | — |
-| `--threshold <n>` | Hash difference threshold | 5 |
+| `--include <path>` (`-i`) | Directory to scan (repeatable) | required |
+| `--exclude <path>` (`-e`) | Directory to exclude (repeatable) | — |
+| `--no-subdirs` | Do not scan subdirectories | off |
+| `--threshold <n>` | Hash difference threshold (0–10, lower = stricter) | 5 |
 | `--percent <n>` | Minimum similarity % to report | 96 |
 | `--parallelism <n>` | Parallel hashing threads | 1 |
+| `--matching-parallelism <n>` | Worker cap for CPU-bound matching; 0 = automatic | 0 |
 | `--include-images` | Also scan image files | off |
-| `--use-phash` | Use perceptual hashing | off |
+| `--use-phash` | Use perceptual hashing (videos) | off |
+| `--combined-matching` | Run both grayscale and pHash in one pass, match by either | off |
+| `--phash-sample-ratio <n>` | Fraction of sampled frames that must pass pHash (0.01–1.0) | 0.6 |
+| `--native-ffmpeg` | Use native FFmpeg bindings instead of the CLI wrapper | off |
+| `--hardware-accel <mode>` | FFmpeg hardware acceleration (none, auto, cuda, vaapi, …) | none |
+| `--ff-args <args>` | Additional custom FFmpeg arguments | — |
 | `--partial-clip-detection` | Enable partial clip detection (audio fingerprinting) | off |
 | `--partial-clip-min-ratio <n>` | Min clip/source duration ratio (0.0–1.0) | 0.10 |
 | `--partial-clip-similarity <n>` | Min audio fingerprint similarity (0.0–1.0) | 0.80 |
+| `--partial-clip-require-visual` | Require a visual frame check on partial-clip matches | on |
+| `--partial-clip-visual-threshold <n>` | Min visual similarity for the partial-clip gate (0.0–1.0) | 0.85 |
 | `--ai-matching` | AI matching pass (downloads components on first use) | off |
 | `--ai-percent <n>` | AI similarity threshold (50–100) | 94 |
 | `--ai-partial` | Visual partial detection via AI keyframes (no audio needed) | off |
 | `--ai-partial-hit-percent <n>` | Per-keyframe hit threshold (70–99) | 89 |
-| `--format json\|text\|csv` | Output format | text |
-| `--output <file>` | Write results to file instead of stdout | stdout |
-| `--settings <file>` | Load full settings from a JSON file | — |
+| `--include-non-existing` | Compare against database entries whose files are gone | off |
+| `--checkpoint-interval <n>` | DB checkpoint interval in minutes (0 = disabled) | 5 |
+| `--db <path>` | Custom folder for the scan database | — |
+| `--settings <file>` (`-s`) | Load full settings from a JSON file | — |
+| `--format text\|json\|csv` (`-f`) | Output format | text |
+| `--output <file>` (`-o`) | Write results to file instead of stdout | stdout |
 
 #### Auto-mark and delete duplicates
 ```bash
@@ -351,7 +367,9 @@ docker compose pull && docker compose up -d
 
 ---
 
-# Screenshots (outdated)
+# Screenshots
+Screenshots of the redesigned 4.1 interface are coming. The historic screenshot below (from the 4.0/classic UI) is retained for reference only — the current interface differs.
+
 <img src="https://user-images.githubusercontent.com/46010672/129763067-8855a538-4a4f-4831-ac42-938eae9343bd.png" width="510">
 
 # License
