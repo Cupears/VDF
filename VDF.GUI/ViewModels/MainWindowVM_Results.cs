@@ -16,10 +16,13 @@
 
 using System.Linq;
 using System.Reactive;
+using System.Threading;
 using Avalonia.Collections;
 using Avalonia.Input.Platform;
 using ReactiveUI;
+using VDF.Core.Utils;
 using VDF.GUI.Data;
+using VDF.GUI.Views;
 
 namespace VDF.GUI.ViewModels {
 	public sealed record ResultsSortOption(string Name, ResultsSortMode Mode);
@@ -53,6 +56,55 @@ namespace VDF.GUI.ViewModels {
 		internal Func<ResultsScrollAnchor.Capture?>? ResultsAnchorProvider;
 		/// <summary>Scrolls the given row of the rebuilt list back to the captured viewport offset (#862).</summary>
 		internal Action<object, double>? ResultsScrollToRow;
+
+		// ── Lazy thumbnail loading (view as you scroll) ─────────────────────────
+		// The results ListBox is virtualized, so only on-screen rows are realized. Instead
+		// of pre-extracting a thumbnail for every duplicate up front (expensive on slow
+		// disks), the view reports the currently visible DuplicateItemVMs and we extract
+		// only for those — plus a prefetch window — as they scroll into view. The disk
+		// ThumbPack caches each result, so re-viewing a file is cheap.
+		/// <summary>DuplicateItemVMs already handed to the thumbnail extractor (avoids re-requesting on every scroll tick).</summary>
+		readonly HashSet<DuplicateItemVM> thumbnailRequestedItems = new();
+		/// <summary>In-flight lazy thumbnail extraction; cancelled when the visible set moves on.</summary>
+		CancellationTokenSource? lazyThumbnailCts;
+
+		/// <summary>
+		/// Called by the view whenever the set of realized (viewport + prefetch) result rows
+		/// changes. Requests thumbnail extraction only for rows not yet requested, canceling
+		/// any in-flight batch so a long scroll jump doesn't keep churning old rows.
+		/// </summary>
+		internal void OnResultsVisibleItemsChanged(List<DuplicateItemVM> visibleItems) {
+			if (!SettingsFile.Instance.GeneratePreviewThumbnails) return;
+			List<DuplicateItemVM> toLoad = new();
+			foreach (var item in visibleItems)
+				if (thumbnailRequestedItems.Add(item))
+					toLoad.Add(item);
+			if (toLoad.Count == 0) return;
+
+			lazyThumbnailCts?.Cancel();
+			var cts = new CancellationTokenSource();
+			lazyThumbnailCts = cts;
+			var token = cts.Token;
+			_ = RetrieveVisibleThumbnailsAsync(toLoad, token);
+		}
+
+		async Task RetrieveVisibleThumbnailsAsync(List<DuplicateItemVM> toLoad, CancellationToken token) {
+			try {
+				SyncCoreSettings();
+				var infos = toLoad.Select(d => d.ItemInfo).ToList();
+				await Scanner.RetrieveThumbnailsForItems(infos, token);
+			}
+			catch (OperationCanceledException) { }
+			catch (Exception ex) {
+				Logger.Instance.Error($"Lazy thumbnail load failed: {ex.Message}");
+			}
+		}
+
+		/// <summary>Resets the lazy loader's memory (new scan: prior requested set is stale).</summary>
+		internal void ResetLazyThumbnailState() {
+			lazyThumbnailCts?.Cancel();
+			thumbnailRequestedItems.Clear();
+		}
 
 		public ResultsSortOption[] ResultsSortOptions { get; } = {
 			new(App.Lang["Results.Sort.WastedSpace"], ResultsSortMode.WastedSpace),
@@ -178,6 +230,35 @@ namespace VDF.GUI.ViewModels {
 			if (item == null) return;
 			if (ApplicationHelpers.MainWindow.Clipboard is { } clipboard)
 				await clipboard.SetTextAsync(ResultsBadgeRules.BuildDetailsText(item.ItemInfo));
+		});
+
+		/// <summary>
+		/// Opens the "why similar?" diagnostic for this result row vs. its group's best file,
+		/// explaining which algorithm and score matched them (including cases that show 100%
+		/// but look different). Reuses the single-pair report engine behind Settings → Test.
+		/// </summary>
+		public ReactiveCommand<DuplicateItemVM, Unit> WhySimilarCommand => ReactiveCommand.CreateFromTask<DuplicateItemVM>(async item => {
+			if (item == null || IsScanning) return;
+			ResultsItemRow? ownRow = resultsGroups
+				.SelectMany(g => g.Rows)
+				.FirstOrDefault(r => ReferenceEquals(r.Item, item));
+			if (ownRow == null) return;
+
+			// Anchor on the group's best (keep) file; only compare the best against itself as a fallback.
+			var rows = ownRow.Group.Rows;
+			ResultsItemRow? reference = rows.FirstOrDefault(r => r.IsBest && !ReferenceEquals(r.Item, item))
+				?? rows.FirstOrDefault(r => !ReferenceEquals(r.Item, item) && !r.Item.IsOffline && !r.Item.IsTombstone)
+				?? rows.FirstOrDefault(r => !ReferenceEquals(r.Item, item));
+			if (reference == null) {
+				await MessageBoxService.Show(App.Lang["Results.Details.WhySimilarNoPair"], title: App.Lang["Results.Details.WhySimilarTitle"]);
+				return;
+			}
+
+			string fileA = item.ItemInfo.Path;
+			string fileB = reference.Item.ItemInfo.Path;
+			SyncCoreSettings();
+			var dlg = new WhySimilarView(() => Scanner.TestFilePairAsync(fileA, fileB), fileA, fileB);
+			await dlg.ShowDialog(ApplicationHelpers.MainWindow);
 		});
 
 		public ReactiveCommand<Unit, Unit> DismissResultsHintCommand => ReactiveCommand.Create(() => {

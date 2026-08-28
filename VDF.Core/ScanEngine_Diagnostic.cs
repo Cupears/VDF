@@ -309,7 +309,7 @@ namespace VDF.Core {
 				float diffSum = 0f;
 				for (int j = 0; j < positions.Count; j++) {
 					float frameDiff = Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ?
-						GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(a.compareGray![j]!, b.compareGray![j]!, Settings.IgnoreBlackPixels, Settings.IgnoreWhitePixels) :
+						GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(a.compareGray![j]!, b.compareGray![j]!, Settings.IgnoreBlackPixels, Settings.IgnoreWhitePixels, Settings.IgnoreBlackThreshold, Settings.IgnoreWhiteThreshold) :
 						GrayBytesUtils.PercentageDifference(a.compareGray![j]!, b.compareGray![j]!);
 					diffSum += frameDiff;
 					if (positions.Count > 1)
@@ -371,9 +371,9 @@ namespace VDF.Core {
 					// Tell the user whether the grayscale method would have caught the pair.
 					float graySum = 0f;
 					for (int j = 0; j < positions.Count; j++)
-						graySum += Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ?
-							GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(a.compareGray![j]!, b.compareGray![j]!, Settings.IgnoreBlackPixels, Settings.IgnoreWhitePixels) :
-							GrayBytesUtils.PercentageDifference(a.compareGray![j]!, b.compareGray![j]!);
+					graySum += Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ?
+						GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(a.compareGray![j]!, b.compareGray![j]!, Settings.IgnoreBlackPixels, Settings.IgnoreWhitePixels, Settings.IgnoreBlackThreshold, Settings.IgnoreWhiteThreshold) :
+						GrayBytesUtils.PercentageDifference(a.compareGray![j]!, b.compareGray![j]!);
 					float graySimilarity = 1f - graySum / positions.Count;
 					sb.AppendLine($"For reference, grayscale similarity (pHash disabled): {FormatSimilarity(graySimilarity)}");
 					if (graySimilarity >= Settings.Percent / 100f)

@@ -37,6 +37,8 @@ namespace VDF.Core {
 		public bool AlwaysRetryFailedSampling;
 		public bool IgnoreBlackPixels;
 		public bool IgnoreWhitePixels;
+		public byte IgnoreBlackThreshold = 0x20;
+		public byte IgnoreWhiteThreshold = 0xF0;
 		public bool CompareHorizontallyFlipped;
 		public bool IncludeNonExistingFiles;
 		/// <summary>

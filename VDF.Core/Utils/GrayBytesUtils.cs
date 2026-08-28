@@ -69,7 +69,11 @@ namespace VDF.Core.Utils {
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe float PercentageDifferenceWithoutSpecificPixels(byte[] img1, byte[] img2, bool ignoreBlackPixels, bool ignoreWhitePixels) {
+		public static unsafe float PercentageDifferenceWithoutSpecificPixels(byte[] img1, byte[] img2, bool ignoreBlackPixels, bool ignoreWhitePixels) =>
+			PercentageDifferenceWithoutSpecificPixels(img1, img2, ignoreBlackPixels, ignoreWhitePixels, BlackPixelLimit, WhitePixelLimit);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe float PercentageDifferenceWithoutSpecificPixels(byte[] img1, byte[] img2, bool ignoreBlackPixels, bool ignoreWhitePixels, byte blackPixelLimit, byte whitePixelLimit) {
 			ThrowIfLengthMismatch(img1, img2);
 
 			// When neither filter is enabled this degenerates to PercentageDifference,
@@ -90,8 +94,8 @@ namespace VDF.Core.Utils {
 				//   2. AND both inputs with the mask (excluded lanes become 0 in both → contribute 0 to SAD).
 				//   3. Sum-absolute-differences for the diff total; SAD(mask, 0) for the count
 				//      (each surviving 0xFF byte contributes 255, divide at the end).
-				var blackThr = Vector256.Create(BlackPixelLimit);
-				var whiteMinus1 = Vector256.Create((byte)(WhitePixelLimit - 1));
+				var blackThr = Vector256.Create(blackPixelLimit);
+				var whiteMinus1 = Vector256.Create((byte)(whitePixelLimit - 1));
 				var zero = Vector256<byte>.Zero;
 
 				// Int64-lane accumulators (see PercentageDifference) so neither the difference nor
@@ -109,14 +113,14 @@ namespace VDF.Core.Utils {
 					Vector256<byte> validMask = Vector256<byte>.AllBitsSet;
 
 					if (ignoreBlackPixels) {
-						// "Black" ⇔ v ≤ BlackPixelLimit ⇔ SubtractSaturate(v, blackThr) == 0.
+						// "Black" ⇔ v ≤ blackPixelLimit ⇔ SubtractSaturate(v, blackThr) == 0.
 						var v1IsBlack = Avx2.CompareEqual(Avx2.SubtractSaturate(v1, blackThr), zero);
 						var v2IsBlack = Avx2.CompareEqual(Avx2.SubtractSaturate(v2, blackThr), zero);
 						var anyBlack = Avx2.Or(v1IsBlack, v2IsBlack);
 						validMask = Avx2.AndNot(anyBlack, validMask);
 					}
 					if (ignoreWhitePixels) {
-						// "Not white" ⇔ v < WhitePixelLimit ⇔ v ≤ WhitePixelLimit-1
+						// "Not white" ⇔ v < whitePixelLimit ⇔ v ≤ whitePixelLimit-1
 						// ⇔ SubtractSaturate(v, whiteMinus1) == 0.
 						var v1NotWhite = Avx2.CompareEqual(Avx2.SubtractSaturate(v1, whiteMinus1), zero);
 						var v2NotWhite = Avx2.CompareEqual(Avx2.SubtractSaturate(v2, whiteMinus1), zero);
@@ -140,10 +144,10 @@ namespace VDF.Core.Utils {
 				for (int i = 0; i < img1.Length; i++) {
 					bool isValid = true;
 					if (ignoreBlackPixels)
-						isValid = img1[i] > BlackPixelLimit && img2[i] > BlackPixelLimit;
+						isValid = img1[i] > blackPixelLimit && img2[i] > blackPixelLimit;
 					if (!isValid) continue;
 					if (ignoreWhitePixels)
-						isValid = img1[i] < WhitePixelLimit && img2[i] < WhitePixelLimit;
+						isValid = img1[i] < whitePixelLimit && img2[i] < whitePixelLimit;
 					if (!isValid) continue;
 					diff += Math.Abs(img1[i] - img2[i]);
 					counter++;
