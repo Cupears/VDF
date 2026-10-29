@@ -55,12 +55,10 @@ public sealed class ResultsGroupActionTests : IDisposable {
 		var tomb = Add(vm, group, "toggle-deleted.mp4", exists: false);
 		var outside = Add(vm, other, "toggle-other.mp4");
 		vm.RebuildResultsList();
-		var header = vm.ResultsRows.OfType<ResultsGroupHeader>().Single(h => h.GroupId == group);
-
-		vm.SelectAllInGroupHeaderCommand.Execute(header).Subscribe();
+		vm.SelectAllInGroup(group);
 		Assert.True(a.Checked && b.Checked);
 		Assert.False(tomb.Checked || outside.Checked);
-		vm.SelectAllInGroupHeaderCommand.Execute(header).Subscribe();
+		vm.SelectAllInGroup(group);
 		Assert.False(a.Checked || b.Checked || tomb.Checked || outside.Checked);
 		vm.UndoSelectionCommand.Execute().Subscribe();
 		Assert.True(a.Checked && b.Checked);

@@ -389,10 +389,6 @@ namespace VDF.GUI.ViewModels {
 			if (header != null) KeepBestInGroup(header.GroupId);
 		});
 
-		public ReactiveCommand<ResultsGroupHeader, Unit> SelectAllInGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
-			if (header != null) SelectAllInGroup(header.GroupId);
-		});
-
 		public ReactiveCommand<ResultsGroupHeader, Unit> CheckAllInGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
 			if (header != null) CheckAllInGroup(header.GroupId);
 		});
