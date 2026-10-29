@@ -26,6 +26,8 @@ using VDF.GUI.ViewModels;
 
 namespace VDF.GUI.Data {
 	public enum ThumbnailDoubleClickAction { OpenFile, OpenThumbnailComparer }
+	/// <summary>Which theme the app uses. System follows what the operating system is set to, live.</summary>
+	public enum ThemeMode { System, Light, Dark }
 
 	public class SettingsFile : ReactiveObject {
 		static SettingsFile? instance;
@@ -425,11 +427,54 @@ namespace VDF.GUI.Data {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
 		} = false;
-		[JsonPropertyName("DarkMode")]
-		public bool DarkMode {
+		[JsonPropertyName("ThemeMode")]
+		public ThemeMode ThemeMode {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
-		} = true;
+		} = ThemeMode.System;
+		/// <summary>
+		/// Size of everything in the app in percent. 0 follows the text size set in the
+		/// operating system; a percentage is for systems that have no such setting, or for
+		/// wanting VDF larger than the rest (#923).
+		/// </summary>
+		[JsonPropertyName("UiScalePercent")]
+		public int UiScalePercent {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value <= 0 ? 0 : Math.Clamp(value, 50, 300));
+		}
+		/// <summary>
+		/// The high contrast version of the theme even when the operating system does not ask
+		/// for it. The system's own request is always followed.
+		/// </summary>
+		[JsonPropertyName("AlwaysHighContrast")]
+		public bool AlwaysHighContrast {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		}
+		/// <summary>
+		/// Animations stand still even when the operating system does not say so: for systems
+		/// without such a setting, and for users who want it in VDF only. The system's own
+		/// "off" is always followed.
+		/// </summary>
+		[JsonPropertyName("AlwaysReduceMotion")]
+		public bool AlwaysReduceMotion {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		}
+		/// <summary>
+		/// The on/off switch <see cref="ThemeMode"/> replaced, read once from an older settings
+		/// file and never written again. It defaulted to on, so "on" says nothing about what
+		/// the user wanted and becomes System; "off" was a choice and stays Light.
+		/// </summary>
+		[JsonPropertyName("DarkMode")]
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+		public bool? LegacyDarkMode { get; set; }
+
+		internal void MigrateLegacyValues() {
+			if (LegacyDarkMode == false && ThemeMode == ThemeMode.System)
+				ThemeMode = ThemeMode.Light;
+			LegacyDarkMode = null;
+		}
 		[JsonPropertyName("ThumbnailComparerWindowWidth")]
 		public double? ThumbnailComparerWindowWidth {
 			get;
@@ -491,6 +536,12 @@ namespace VDF.GUI.Data {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
 		} = true;
+		/// <summary>Audio and subtitle track languages (#899). Off by default: experts opt in to extra columns.</summary>
+		[JsonPropertyName("ShowLanguagesColumn")]
+		public bool ShowLanguagesColumn {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		}
 		// First-results hint: "drag the Preview handle / raise the thumbnail width" (one-shot)
 		[JsonPropertyName("ResultsHintDismissed")]
 		public bool ResultsHintDismissed {
@@ -530,6 +581,16 @@ namespace VDF.GUI.Data {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, Math.Clamp(value, 56, 1600));
 		} = 160;
+		/// <summary>
+		/// Show and use the date a file was last modified instead of the date it was created.
+		/// Copying or downloading a file sets its creation date to that moment; the modified
+		/// date usually survives both (#907).
+		/// </summary>
+		[JsonPropertyName("ResultsShowDateModified")]
+		public bool ResultsShowDateModified {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		}
 		[JsonPropertyName("ResultsCompactRows")]
 		public bool ResultsCompactRows {
 			get;
@@ -609,7 +670,16 @@ namespace VDF.GUI.Data {
 		public List<string> QualityCriteriaOrder {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
-		} = ["Duration", "Resolution", "Bitrate", "FPS", "Bits per pixel", "Audio Bitrate", "Size"];
+		} = ["Duration", "Resolution", "Bitrate", "FPS", "Bits per pixel", "Audio Bitrate", "Size", "SizeLarger"];
+		/// <summary>
+		/// Criteria the quality ranking ignores (#885). "Size (larger file wins)" starts
+		/// switched off, so nothing changes until someone turns it on (#895).
+		/// </summary>
+		[JsonPropertyName("QualityCriteriaDisabled")]
+		public List<string> QualityCriteriaDisabled {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		} = ["SizeLarger"];
 
 		[JsonPropertyName("EnableScheduledScan")]
 		public bool EnableScheduledScan {
@@ -647,6 +717,7 @@ namespace VDF.GUI.Data {
 			if (!File.Exists(path)) return;
 			instance = JsonSerializer.Deserialize(File.ReadAllBytes(path), GuiJsonContext.Default.SettingsFile)
 				?? throw new JsonException($"'{path}' does not contain a settings object.");
+			instance.MigrateLegacyValues();
 		}
 
 		/// <summary>

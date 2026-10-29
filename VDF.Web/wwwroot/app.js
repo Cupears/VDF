@@ -39,13 +39,17 @@ window.vdf = {
         localStorage.setItem('vdf-compare-mode', mode);
     },
 
-    download: function (url) {
+    // Saves a file the server streamed over the circuit (DotNetStreamReference).
+    downloadStream: async function (fileName, streamRef) {
+        var blob = new Blob([await streamRef.arrayBuffer()]);
+        var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
-        a.download = '';
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         a.remove();
+        URL.revokeObjectURL(url);
     },
 
     scrollToGroup: function (index) {
@@ -89,6 +93,10 @@ window.vdf = {
     initSwipe: function () {
         var el = document.querySelector('.compare-swipe');
         if (!el) return;
+        // Called after every render: stepping frames must not wire the handlers up
+        // again or throw the slider back to the middle.
+        if (el._vdfSwipeReady) return;
+        el._vdfSwipeReady = true;
 
         function updatePos(clientX) {
             var rect = el.getBoundingClientRect();

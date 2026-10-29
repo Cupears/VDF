@@ -54,6 +54,9 @@ namespace VDF.GUI.ViewModels {
 		/// <summary>Localized "3 files · 1.9 GB · save up to 1.2 GB" line, set by the builder.</summary>
 		public string Summary { get; internal set; } = string.Empty;
 
+		/// <summary>What a screen reader says for this row ("Group 1, 2 files · 2.4 GB, 98.4–100 %").</summary>
+		public string AccessibleName => ResultsAccessibleText.DescribeGroup(this);
+
 		public string SimilarityRangeDisplay {
 			get {
 				string min = SimilarityMin.ToString("0.#", CultureInfo.CurrentCulture);
@@ -79,6 +82,33 @@ namespace VDF.GUI.ViewModels {
 		/// the chip stays neutral: there is nothing to win.
 		/// </summary>
 		public bool HdrIsUpgrade { get; internal set; }
+		/// <summary>
+		/// What a screen reader says for this row, set by the builder. The checked state is
+		/// not part of it: it changes while the row lives, the view adds it.
+		/// </summary>
+		public string AccessibleName { get; internal set; } = string.Empty;
+
+		/// <summary>
+		/// Metrics in which every member of the group has the same value. Those are shown
+		/// neutral: there is nothing to win, and all-green read as "all equally good" next
+		/// to groups where green means better (#888, #915). Set by the builder.
+		/// </summary>
+		public bool SameDuration { get; internal set; }
+		public bool SameFrameSize { get; internal set; }
+		public bool SameSize { get; internal set; }
+		public bool SameBitRate { get; internal set; }
+		public bool SameAudioBitRate { get; internal set; }
+
+		public bool DurationHi => !SameDuration && Item.ItemInfo.IsBestDuration;
+		public bool DurationLo => !SameDuration && !Item.ItemInfo.IsBestDuration;
+		public bool FrameSizeHi => !SameFrameSize && Item.ItemInfo.IsBestFrameSize;
+		public bool FrameSizeLo => !SameFrameSize && !Item.ItemInfo.IsBestFrameSize;
+		public bool SizeHi => !SameSize && Item.ItemInfo.IsBestSize;
+		public bool SizeLo => !SameSize && !Item.ItemInfo.IsBestSize;
+		public bool BitRateHi => !SameBitRate && Item.ItemInfo.IsBestBitRateKbs;
+		public bool BitRateLo => !SameBitRate && !Item.ItemInfo.IsBestBitRateKbs;
+		public bool AudioBitRateHi => !SameAudioBitRate && Item.ItemInfo.IsBestAudioBitRateKbs;
+		public bool AudioBitRateLo => !SameAudioBitRate && !Item.ItemInfo.IsBestAudioBitRateKbs;
 	}
 
 	/// <summary>
@@ -87,19 +117,32 @@ namespace VDF.GUI.ViewModels {
 	/// Text lines are precomputed here so the template binds plain strings.
 	/// </summary>
 	public sealed class ResultsDetailsRow {
-		public ResultsDetailsRow(ResultsItemRow row) {
+		public ResultsDetailsRow(ResultsItemRow row, RowSpeechWords? words = null) {
 			Row = row;
+			words ??= RowSpeechWords.Default;
 			var culture = CultureInfo.CurrentCulture;
-			VideoText = Data.ResultsBadgeRules.BuildVideoLine(row.Item.ItemInfo, culture);
-			AudioText = Data.ResultsBadgeRules.BuildAudioLine(row.Item.ItemInfo, culture);
-			FileText = Data.ResultsBadgeRules.BuildFileLine(row.Item.ItemInfo, culture);
+			var info = row.Item.ItemInfo;
+			VideoText = Data.ResultsBadgeRules.BuildVideoLine(info, culture);
+			AudioText = Data.ResultsBadgeRules.BuildAudioLine(info, culture);
+			FileText = Data.ResultsBadgeRules.BuildFileLine(info, culture);
+			AudioLanguagesText = string.IsNullOrEmpty(info.AudioLanguages) ? string.Empty : string.Format(culture, words.LanguagesLine, info.AudioLanguages);
+			SubtitlesText = info.SubtitleLanguages ?? string.Empty;
+			SubtitlesSpokenText = SubtitlesText.Length == 0 ? string.Empty : string.Format(culture, words.SubtitlesLine, SubtitlesText);
 		}
 		public ResultsItemRow Row { get; }
 		public DuplicateItemVM Item => Row.Item;
 		public string VideoText { get; }
 		public string AudioText { get; }
 		public string FileText { get; }
-		public bool HasAudio => AudioText.Length > 0;
+		/// <summary>"Languages: GER, ENG" (#899); empty when no audio track is tagged.</summary>
+		public string AudioLanguagesText { get; }
+		/// <summary>"GER, ?" under the Subtitles heading; empty when the file has none.</summary>
+		public string SubtitlesText { get; }
+		public string SubtitlesSpokenText { get; }
+		public bool HasAudio => AudioText.Length > 0 || AudioLanguagesText.Length > 0;
+		public bool HasAudioLanguages => AudioLanguagesText.Length > 0;
+		public bool HasSubtitles => SubtitlesText.Length > 0;
+		public string AccessibleName => ResultsAccessibleText.DescribeDetails(this);
 		public bool IsImage => Item.ItemInfo.IsImage;
 	}
 

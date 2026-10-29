@@ -56,6 +56,10 @@ namespace VDF.GUI.ViewModels {
 		internal Func<ResultsScrollAnchor.Capture?>? ResultsAnchorProvider;
 		/// <summary>Scrolls the given row of the rebuilt list back to the captured viewport offset (#862).</summary>
 		internal Action<object, double>? ResultsScrollToRow;
+		/// <summary>The row holding keyboard focus before a rebuild, or null (see <see cref="ResultsFocusKeeper"/>).</summary>
+		internal Func<object?>? ResultsFocusedRowProvider;
+		/// <summary>Moves keyboard focus to the given row of the rebuilt list, unless the user put it elsewhere meanwhile.</summary>
+		internal Action<object>? ResultsFocusRow;
 
 		// ── Lazy thumbnail loading (view as you scroll) ─────────────────────────
 		// The results ListBox is virtualized, so only on-screen rows are realized. Instead
@@ -243,10 +247,25 @@ namespace VDF.GUI.ViewModels {
 			PreviouslyDeleted = App.Lang["Results.Summary.PreviouslyDeleted"],
 		};
 
+		static RowSpeechWords BuildRowSpeechWords() => new() {
+			Best = App.Lang["Results.Row.Best"],
+			AlreadyDeleted = App.Lang["DupList.AlreadyDeleted"],
+			Offline = App.Lang["DupList.Offline"],
+			AiMatched = App.Lang["A11y.Row.AiMatched"],
+			Checked = App.Lang["Comparer.CheckedTag"],
+			LanguagesLine = App.Lang["Results.Details.LanguagesLine"],
+			SubtitlesLine = App.Lang["Results.Details.SubtitlesLine"],
+		};
+
 		/// <summary>Rebuilds the flattened list from the current duplicates, filter and sort.</summary>
 		internal void RebuildResultsList() {
 			ResultsScrollAnchor.Capture? anchor = ResultsAnchorProvider?.Invoke();
 			List<Guid> oldGroupOrder = resultsGroups.ConvertAll(g => g.GroupId);
+			object? focusedRow = ResultsFocusedRowProvider?.Invoke();
+			int focusedIndex = focusedRow == null ? -1 : ResultsRows.IndexOf(focusedRow);
+			RebuildGroupsWithOneFileLeft();
+			RebuildGroupsWithAiMatch();
+			ApplySizePreferenceIfChanged();
 			var result = ResultsListBuilder.Build(new ResultsBuildRequest {
 				Items = Duplicates.ToList(),
 				Filter = DuplicatesFilterCore,
@@ -257,10 +276,11 @@ namespace VDF.GUI.ViewModels {
 				ExpandedDetails = expandedResultsDetails,
 				PickBest = members => {
 					var (keep, decidedBy) = VDF.Core.Utils.QualityRanker.PickKeeperWithReason(
-						members.ToList(), ResolveCriteria(QualityCriteriaOrder), d => d.ItemInfo.IsImage);
+						members.ToList(), ActiveQualityCriteria, d => d.ItemInfo.IsImage);
 					return (keep, BestBadgeTooltip(decidedBy));
 				},
 				Formats = BuildGroupSummaryFormats(),
+				SpeechWords = BuildRowSpeechWords(),
 			});
 			resultsGroups = result.Groups;
 			resultsHavePartialClips = result.HasPartialClips;
@@ -273,6 +293,8 @@ namespace VDF.GUI.ViewModels {
 			// offset, not flush to the top, so the viewport appears to stand still (#862).
 			if (anchor is { } a && ResultsScrollAnchor.FindRestoreTarget(a.Row, oldGroupOrder, result.Rows) is { } target)
 				ResultsScrollToRow?.Invoke(target, a.ViewportOffsetY);
+			if (ResultsFocusKeeper.FindFocusTarget(focusedRow, focusedIndex, result.Rows) is { } focusTarget)
+				ResultsFocusRow?.Invoke(focusTarget);
 		}
 
 		/// <summary>Refreshes the results list after filter/sort/list changes.</summary>
@@ -344,12 +366,35 @@ namespace VDF.GUI.ViewModels {
 			if (header != null) CompareGroup(header.GroupId);
 		});
 
+		/// <summary>Every metadata tag of the group's files side by side (#926), read on demand.</summary>
+		public ReactiveCommand<ResultsGroupHeader, Unit> CompareMetadataOfGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
+			if (header == null) return;
+			var members = MetadataCompareMembers(header.GroupId);
+			if (members.Count == 0) return;
+			var vm = new MetadataCompareVM(members, Views.MetadataCompareWindow.LocalizedTexts());
+			if (ShowMetadataCompare != null) ShowMetadataCompare(vm);
+			else new Views.MetadataCompareWindow(vm).Show();
+		});
+
+		/// <summary>Test seam: receives the comparison instead of a window being opened.</summary>
+		internal Action<MetadataCompareVM>? ShowMetadataCompare;
+
+		/// <summary>The group's files in the order the results list shows them.</summary>
+		internal List<DuplicateItemVM> MetadataCompareMembers(Guid groupId) {
+			var shown = ResultsRows.OfType<ResultsItemRow>().Where(r => r.Item.ItemInfo.GroupId == groupId).Select(r => r.Item).ToList();
+			return shown.Count > 0 ? shown : Duplicates.Where(d => d.ItemInfo.GroupId == groupId).ToList();
+		}
+
 		public ReactiveCommand<ResultsGroupHeader, Unit> KeepBestInGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
 			if (header != null) KeepBestInGroup(header.GroupId);
 		});
 
 		public ReactiveCommand<ResultsGroupHeader, Unit> SelectAllInGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
 			if (header != null) SelectAllInGroup(header.GroupId);
+		});
+
+		public ReactiveCommand<ResultsGroupHeader, Unit> CheckAllInGroupHeaderCommand => ReactiveCommand.Create<ResultsGroupHeader>(header => {
+			if (header != null) CheckAllInGroup(header.GroupId);
 		});
 
 		public ReactiveCommand<ResultsGroupHeader, Unit> MarkGroupHeaderNotAMatchCommand => ReactiveCommand.CreateFromTask<ResultsGroupHeader>(async header => {
