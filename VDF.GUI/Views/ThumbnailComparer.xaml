@@ -717,7 +717,8 @@
                                 <Border Classes="kbd"><TextBlock Text="N" /></Border>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding SelectAllAndNextGroupCommand}" IsEnabled="{Binding CanNavigateGroups}">
+                        <Button Command="{Binding SelectAllAndNextGroupCommand}" IsEnabled="{Binding CanNavigateGroups}"
+                                AutomationProperties.Name="{Binding Source={x:Static app:App.Lang}, Path=[Results.Group.SelectAll]}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock VerticalAlignment="Center" FontSize="13"
                                            Text="{Binding Source={x:Static app:App.Lang}, Path=[Results.Group.SelectAll]}" />

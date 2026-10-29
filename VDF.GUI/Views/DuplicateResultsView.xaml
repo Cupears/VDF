@@ -967,7 +967,7 @@
                           ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[DupList.OfflineTooltip]}">
                     <TextBlock Text="{Binding Source={x:Static local:App.Lang}, Path=[DupList.Offline]}"
                                FontSize="10" FontWeight="Bold"
-                               Foreground="{DynamicResource VdfMutedBrush}" />
+                               Foreground="{DynamicResource TextControlForeground}" />
                   </Border>
                   <!-- Tier-2 metadata: toggles the details panel under this row -->
                   <Button Classes="group-action" Padding="4,0" FontSize="12" Content="ⓘ"

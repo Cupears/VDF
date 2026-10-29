@@ -42,12 +42,11 @@ public class ComparerKeyboardTests {
 	}
 
 	/// <summary>Comparer on a two-file group with "Highlight differences" on, its sensitivity slider focused.</summary>
-	static void WithFocusedSensitivitySlider(Action<ThumbnailComparer, ThumbnailComparerVM, Slider, List<LargeThumbnailDuplicateItem>> body) =>
-		// Completes synchronously: nothing in here awaits unless the body does.
+	static Task WithFocusedSensitivitySlider(Action<ThumbnailComparer, ThumbnailComparerVM, Slider, List<LargeThumbnailDuplicateItem>> body) =>
 		WithFocusedSensitivitySlider((comparer, vm, slider, items) => {
 			body(comparer, vm, slider, items);
 			return Task.CompletedTask;
-		}).GetAwaiter().GetResult();
+		});
 
 	static async Task WithFocusedSensitivitySlider(Func<ThumbnailComparer, ThumbnailComparerVM, Slider, List<LargeThumbnailDuplicateItem>, Task> body) {
 		HeadlessUi.Shell(); // the comparer takes the main window as its owner
@@ -63,6 +62,9 @@ public class ComparerKeyboardTests {
 		var comparer = new ThumbnailComparer(items);
 		var vm = (ThumbnailComparerVM)comparer.DataContext!;
 		comparer.Show();
+		// The Loaded handler starts this asynchronously. Wait for the pair setup before
+		// sending keys so this test does not race thumbnail initialization.
+		await vm.LoadThumbnailsAsync();
 		HeadlessUi.Pump();
 		try {
 			vm.HighlightDifferences = true;
@@ -110,7 +112,8 @@ public class ComparerKeyboardTests {
 		WithFocusedSensitivitySlider((comparer, vm, _, items) => {
 			Press(comparer, PhysicalKey.A); // keep left, check right
 
-			Assert.True(items[1].Item.Checked);
+			Assert.True(items[1].Item.Checked,
+				$"left={items[0].Item.Checked}, right={items[1].Item.Checked}, pair={vm.PairInfoText}, selected={vm.SelectedItemA?.FileName}/{vm.SelectedItemB?.FileName}");
 			Assert.False(items[0].Item.Checked);
 			Assert.Equal(0.5, vm.DiffSensitivity);
 		}));
