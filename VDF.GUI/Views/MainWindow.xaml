@@ -89,6 +89,8 @@
     <ctl:AnnouncerHost x:Name="Announcer">
     <Border BorderBrush="{DynamicResource SystemControlBackgroundChromeMediumBrush}" BorderThickness="2">
         <Grid>
+            <Border x:Name="CustomBackgroundLayer" IsHitTestVisible="False" />
+            <Image x:Name="CustomBackgroundImageLayer" Stretch="UniformToFill" IsHitTestVisible="False" />
             <controls:ExperimentalAcrylicBorder
                 x:Name="ExperimentalAcrylicBorderBackgroundWhite"
                 IsHitTestVisible="False"

@@ -84,13 +84,14 @@ static class Appearance {
 		Start();
 		if (windows.Contains(window)) return;
 		windows.Add(window);
-		window.Closed += (_, _) => windows.Remove(window);
+		window.Closed += (_, _) => { windows.Remove(window); CustomLook.Detach(window); };
 		// Nothing reports a change of the system's text size: asked again whenever a window
 		// comes to the front, which is when the user returns from the system settings.
 		window.Activated += (_, _) => RefreshSystemPreferences();
 		window.Opened += (_, _) => FitToScreen(window);
 		ScaleWindow(window, 1.0, appliedScale);
 		window.Classes.Set("reduce-motion", ReduceMotionNow);
+		CustomLook.Apply(window);
 	}
 
 	static void Start() {
@@ -102,6 +103,8 @@ static class Appearance {
 		if (app.PlatformSettings is { } platform)
 			platform.ColorValuesChanged += (_, _) => Apply(); // the user switched the system while the app runs
 		SettingsFile.Instance.PropertyChanged += (_, e) => {
+			if (e.PropertyName is nameof(SettingsFile.CustomAppearanceEnabled) or nameof(SettingsFile.CustomTextColor) or nameof(SettingsFile.CustomBackgroundColor) or nameof(SettingsFile.CustomBackgroundImage) or nameof(SettingsFile.CustomBackgroundOpacityPercent))
+				foreach (var window in windows) CustomLook.Apply(window);
 			if (e.PropertyName is nameof(SettingsFile.ThemeMode) or nameof(SettingsFile.AlwaysHighContrast)) Apply();
 			if (e.PropertyName == nameof(SettingsFile.UiScalePercent)) Rescale();
 			if (e.PropertyName == nameof(SettingsFile.AlwaysReduceMotion)) ApplyMotion();
@@ -115,6 +118,7 @@ static class Appearance {
 	internal static void Apply() {
 		if (Application.Current is { } app)
 			app.RequestedThemeVariant = ResolveVariant(IsDarkNow, HighContrastNow);
+		foreach (var window in windows) CustomLook.Apply(window);
 	}
 
 	/// <summary>For tests: what the system is taken to ask for, null to ask the system again.</summary>

@@ -52,6 +52,9 @@ While files are analysed, the card names the active include folder and shows tha
 folder's own progress, time left and finish time, with the overall selected-scan
 totals kept below it. Loading or indexing the saved cache says "Preparing saved
 cache" rather than showing the database size as a slow scan of every original file.
+Settings > Appearance adds a desktop-only custom look: main text color, background
+color, and a background picture with adjustable strength. Status badges keep their
+theme colors, high contrast ignores the custom look, and changes apply live.
 Settings > Scan includes "Include very dark photos". It retries previously dark-skipped
 photos on the next scan and keeps their grayscale samples for classic matching.
 Matches carry a "Dark photo" review label. The switch syncs with the desktop;

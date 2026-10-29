@@ -437,6 +437,21 @@ namespace VDF.GUI.Data {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
 		} = ThemeMode.System;
+		public bool CustomAppearanceEnabled { get; set { this.RaiseAndSetIfChanged(ref field, value); this.RaisePropertyChanged(nameof(CustomLookStatus)); } }
+		public string CustomTextColor { get; set { this.RaiseAndSetIfChanged(ref field, value ?? ""); this.RaisePropertyChanged(nameof(CustomLookStatus)); } } = "";
+		public string CustomBackgroundColor { get; set { this.RaiseAndSetIfChanged(ref field, value ?? ""); this.RaisePropertyChanged(nameof(CustomLookStatus)); } } = "";
+		public string CustomBackgroundImage { get; set { this.RaiseAndSetIfChanged(ref field, value ?? ""); this.RaisePropertyChanged(nameof(CustomLookStatus)); } } = "";
+		public int CustomBackgroundOpacityPercent { get; set => this.RaiseAndSetIfChanged(ref field, Math.Clamp(value, 0, 100)); } = 20;
+		[JsonIgnore]
+		public string CustomLookStatus {
+			get {
+				if (!CustomAppearanceEnabled) return "Custom look is off. Your theme is active.";
+				if (!string.IsNullOrWhiteSpace(CustomTextColor) && !Avalonia.Media.Color.TryParse(CustomTextColor, out _)) return "Text color is invalid. Use #RRGGBB or leave it blank.";
+				if (!string.IsNullOrWhiteSpace(CustomBackgroundColor) && !Avalonia.Media.Color.TryParse(CustomBackgroundColor, out _)) return "Background color is invalid. Use #RRGGBB or leave it blank.";
+				if (!string.IsNullOrWhiteSpace(CustomBackgroundImage) && !File.Exists(CustomBackgroundImage)) return "Background image was not found.";
+				return "Changes apply live. Blank colors use the theme. High contrast keeps the standard colors.";
+			}
+		}
 		/// <summary>
 		/// Size of everything in the app in percent. 0 follows the text size set in the
 		/// operating system; a percentage is for systems that have no such setting, or for

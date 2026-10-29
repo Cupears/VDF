@@ -895,6 +895,24 @@
 
             <!-- ═══════════════ APPEARANCE ═══════════════ -->
             <StackPanel Tag="Appearance" IsVisible="False">
+              <views:SettingRow Title="Custom colors and background" Description="Change the desktop's main text, background color, and background picture. Status badges keep their own colors. These are desktop-only settings." SearchTags="custom text colors background wallpaper picture">
+                <ToggleSwitch Classes="plain" IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomAppearanceEnabled}" />
+              </views:SettingRow>
+              <StackPanel Spacing="10" Margin="8" IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomAppearanceEnabled}">
+                <TextBlock Text="Text color — #RRGGBB, or blank for theme" />
+                <TextBox PlaceholderText="#F5F5F5" Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomTextColor}" AutomationProperties.Name="Custom text color" />
+                <TextBlock Text="Background color — #RRGGBB, or blank for theme" />
+                <TextBox PlaceholderText="#202028" Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomBackgroundColor}" AutomationProperties.Name="Custom background color" />
+                <TextBlock Text="Background picture (optional)" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomBackgroundImage}" AutomationProperties.Name="Background image path" />
+                  <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseCustomBackgroundCommand}" />
+                </Grid>
+                <TextBlock><Run Text="Picture strength: " /><Run Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomBackgroundOpacityPercent}" /><Run Text="%" /></TextBlock>
+                <Slider Minimum="0" Maximum="100" Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomBackgroundOpacityPercent}" AutomationProperties.Name="Background picture strength" />
+              </StackPanel>
+              <TextBlock Margin="8" TextWrapping="Wrap" Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomLookStatus}" />
+              <Button Margin="8" Command="{Binding ResetCustomLookCommand}"><TextBlock Text="Reset custom look" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" /></Button>
               <TextBlock Classes="sectioncaption" IsVisible="False"
                          Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.Appearance]}" />
 
