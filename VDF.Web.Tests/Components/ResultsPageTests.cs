@@ -57,6 +57,32 @@ public sealed class ResultsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Results>();
 
 	[Fact]
+	public async Task TwoBrowsers_ShareChecksAndResultRemovals() {
+		var group = Guid.NewGuid(); Seed("copy-a.mp4", group); Seed("copy-b.mp4", group);
+		var desktop = RenderPage(); var phone = RenderPage();
+		await desktop.InvokeAsync(() => desktop.FindAll(".card-check input").First().Change(true));
+		phone.WaitForAssertion(() => Assert.True(phone.FindAll(".card-check input").First().HasAttribute("checked")));
+		await phone.InvokeAsync(() => phone.FindAll(".card-check input").First().Change(false));
+		desktop.WaitForAssertion(() => Assert.False(desktop.FindAll(".card-check input").First().HasAttribute("checked")));
+		await phone.InvokeAsync(() => phone.Find(".card-remove").Click());
+		desktop.WaitForAssertion(() => Assert.Empty(desktop.FindAll(".dup-card")));
+	}
+
+	[Fact]
+	public async Task DeleteConfirmation_KeepsItsOwnFileListWhenOtherBrowserChangesChecks() {
+		var group = Guid.NewGuid(); var a = Seed("check-a.mp4", group); var b = Seed("check-b.mp4", group);
+		var desktop = RenderPage(); var phone = RenderPage();
+		await desktop.InvokeAsync(() => desktop.FindAll(".dup-card").Single(c => c.TextContent.Contains("check-a.mp4")).QuerySelector(".card-check input")!.Change(true));
+		await desktop.InvokeAsync(() => desktop.FindAll("button").Single(c => c.TextContent == "Delete (trash)").Click());
+		scan.SelectedItems.Add(b);
+		desktop.WaitForAssertion(() => Assert.Contains("1 file(s)", desktop.Find(".confirm-panel strong").TextContent));
+		Assert.Equal(2, scan.SelectedItems.Count);
+		// Do not execute a delete in this UI test. Closing the dialog must leave the checks alone.
+		await desktop.InvokeAsync(() => desktop.FindAll(".confirm-panel button").Single(c => c.TextContent == "Cancel").Click());
+		Assert.Equal(2, scan.SelectedItems.Count);
+	}
+
+	[Fact]
 	public void Comparer_StackedAndCheckGroupNext_KeepChecksWithoutDeleting() {
 		var first = Guid.Parse("00000000-0000-0000-0000-000000000001");
 		var second = Guid.Parse("00000000-0000-0000-0000-000000000002");

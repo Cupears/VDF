@@ -6,13 +6,19 @@ Run Start-Mobile.ps1 to start it and connect the Tailscale phone link.
 The launcher shows the phone address. Tailscale must be on on both devices.
 The desktop shortcut VDF Mobile starts this launcher.
 
-The web app has its own scans and results. It does not control the desktop window.
-Start the desktop through scripts/Start-Desktop.ps1 (or the VDF - Cupears Fork shortcut).
-Both launchers enable two-way shared scan settings. Changes sync within a few seconds
-while the apps are idle; each running scan keeps its settings until it finishes.
-The first setup uses desktop settings as the starting point. After that, edits merge
-by setting; the latest change to the same setting wins. Folder lists count as one setting.
-Database locations, previews, browser appearance, and window layout remain separate.
+The desktop shortcut now opens this same web interface on the PC. Both devices use
+the one VDF.Web server, one scan engine, and its database. Progress, results, and
+checked files are shared. Starting either shortcut reuses the running server.
+Use scripts/Start-Desktop.ps1 (or VDF - Cupears Fork) for desktop access.
+Use VDF Mobile and the Tailscale phone address for phone access.
+The old native GUI and its database are preserved separately. That older cache has
+not been merged into the shared web database. Opening VDF.GUI.exe directly starts
+the old standalone interface, so use the desktop shortcut for the shared session.
+Browser appearance and list filters can differ between devices; checked files are shared.
+Delete confirmation holds a fixed list so checks changed on another device do not
+silently add files to an already-open delete confirmation.
+The earlier settings exchange remains available for the standalone GUI. Changes
+merge by setting; the latest change to the same setting wins. Folder lists are one setting.
 The local .shared-scan-settings.json and its lock file are excluded from Git.
 Settings includes disk limits, drive types, pHash frame agreement, deleted-content memory,
 quality rule ordering, and results display preferences. Shared scan choices save automatically;

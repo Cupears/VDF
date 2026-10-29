@@ -87,8 +87,8 @@ else {
         @if (_selected.Count > 0) {
             <div class="action-group">
                 <button @onclick="RemoveSelected">Remove from list</button>
-                <button @onclick="() => _confirmDelete = true" class="danger-outline" disabled="@Scan.FileOpRunning">Delete (trash)</button>
-                <button @onclick="() => _confirmDeletePermanent = true" class="danger" disabled="@Scan.FileOpRunning">Delete permanently</button>
+                <button @onclick="() => ConfirmDelete(false)" class="danger-outline" disabled="@Scan.FileOpRunning">Delete (trash)</button>
+                <button @onclick="() => ConfirmDelete(true)" class="danger" disabled="@Scan.FileOpRunning">Delete permanently</button>
                 <button @onclick="() => _showMovePanel = !_showMovePanel" disabled="@Scan.FileOpRunning">Move to folder…</button>
                 <button @onclick="() => _showLinkPanel = !_showLinkPanel" disabled="@Scan.FileOpRunning">Replace with links…</button>
                 <button @onclick="ClearSelection">Deselect all</button>
@@ -133,9 +133,10 @@ else {
     @if (_confirmDelete || _confirmDeletePermanent) {
         bool perm = _confirmDeletePermanent;
         <div class="confirm-panel">
-            <strong>&#x26A0; @(perm ? "Permanently delete" : "Move to trash")  @_selected.Count file(s)?</strong>
+            <strong>&#x26A0; @(perm ? "Permanently delete" : "Move to trash")  @_pendingDelete.Count file(s)?</strong>
+            <span>The file list is fixed for this confirmation, even if another device changes its checkboxes.</span>
             @if (perm) { <span class="warn-text">This cannot be undone.</span> }
-            <button class="danger" @onclick="() => ExecuteDelete(perm)">Confirm</button>
+            <button class="danger" @onclick="() => ExecuteDelete(perm)" disabled="@Scan.FileOpRunning">Confirm</button>
             <button @onclick="() => { _confirmDelete = false; _confirmDeletePermanent = false; }">Cancel</button>
         </div>
     }
@@ -567,7 +568,8 @@ else {
         catch (Exception ex) { _whyReport = "The check failed: " + ex.Message; }
     }
     string _search = string.Empty;
-    readonly HashSet<DuplicateItem> _selected = new();
+    SharedSelection _selected => Scan.SelectedItems;
+    List<DuplicateItem> _pendingDelete = new();
     bool _confirmDelete;
     bool _confirmDeletePermanent;
     bool _showMovePanel;
@@ -691,11 +693,16 @@ else {
         _selected.Remove(item);
     }
 
+    void ConfirmDelete(bool permanent) {
+        _pendingDelete = _selected.ToList();
+        _confirmDelete = !permanent; _confirmDeletePermanent = permanent;
+    }
     async Task ExecuteDelete(bool permanent) {
         _confirmDelete = false;
         _confirmDeletePermanent = false;
-        var toDelete = _selected.ToList();
-        _selected.Clear();
+        var toDelete = _pendingDelete.ToList();
+        _pendingDelete.Clear();
+        foreach (var item in toDelete) _selected.Remove(item);
         var result = await Scan.DeleteItemsAsync(toDelete, permanent);
         ShowOpResult($"{result.Done} file(s) {(permanent ? "permanently deleted" : "moved to trash")}", result);
     }
@@ -1056,8 +1063,7 @@ else {
     }
 
     // === CSV Export ===
-    // Built here rather than by an endpoint: the selection belongs to this circuit, and
-    // ScanService is shared by every open tab.
+    // The server's checked-file set is shared by desktop and phone.
     async Task ExportCsv() {
         try {
             byte[] csv = ResultsCsv.Build(Scan.Duplicates.ToList(), _selected);

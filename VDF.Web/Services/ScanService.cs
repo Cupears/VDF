@@ -60,6 +60,9 @@ namespace VDF.Web.Services {
 		public int FilesHashed { get; private set; }
 		public IReadOnlyCollection<DuplicateItem> Duplicates => _engine.Duplicates;
 		public Settings Settings => _engine.Settings;
+		public SharedSelection SelectedItems { get; }
+		int selectionNotificationPending;
+		volatile bool disposed;
 		/// <summary>Test seam: lets tests seed results without driving a real scan.</summary>
 		internal ScanEngine Engine => _engine;
 
@@ -75,6 +78,7 @@ namespace VDF.Web.Services {
 		public event Action? StateChanged;
 
 		public ScanService(WebSettingsService settingsService, SharedScanSettings? sharedSettings = null) {
+			SelectedItems = new SharedSelection(SelectionChanged);
 			_settingsService = settingsService;
 			settingsService.Load(_engine.Settings);
 			_sharedSettings = sharedSettings;
@@ -127,6 +131,7 @@ namespace VDF.Web.Services {
 			LastProgress = null;
 			FilesHashed = 0;
 			_engine.Duplicates.Clear();
+			SelectedItems.Clear();
 			ClearThumbnailCaches();
 			Notify();
 			try {
@@ -188,6 +193,7 @@ namespace VDF.Web.Services {
 			LastProgress = null;
 			FilesHashed = 0;
 			_engine.Duplicates.Clear();
+			SelectedItems.Clear();
 			ClearThumbnailCaches();
 			// Keep IncludeList/BlackList — resetting scan results should not
 			// throw away the paths the user configured.
@@ -197,7 +203,10 @@ namespace VDF.Web.Services {
 		/// <summary>Removes items from the results list without touching the files on disk.</summary>
 		public void RemoveFromResults(IEnumerable<DuplicateItem> items) {
 			foreach (var item in items.ToList())
+			{
 				_engine.Duplicates.Remove(item);
+				SelectedItems.Remove(item);
+			}
 			DropSingletonGroups();
 			Notify();
 		}
@@ -210,8 +219,10 @@ namespace VDF.Web.Services {
 				.Select(g => g.Key)
 				.ToHashSet();
 			foreach (var d in _engine.Duplicates.ToList())
-				if (!keep.Contains(d.GroupId))
+				if (!keep.Contains(d.GroupId)) {
 					_engine.Duplicates.Remove(d);
+					SelectedItems.Remove(d);
+				}
 		}
 
 		// === Batch file operations (delete / move / link) ===
@@ -433,6 +444,7 @@ namespace VDF.Web.Services {
 			await ScanEngine.LoadDatabase();
 			ScanEngine.ClearDatabase();
 			_engine.Duplicates.Clear();
+			SelectedItems.Clear();
 			Notify();
 		}
 
@@ -451,6 +463,14 @@ namespace VDF.Web.Services {
 
 		void Notify() => StateChanged?.Invoke();
 
-		public void Dispose() => _cts.Dispose();
+		void SelectionChanged() {
+			if (Interlocked.Exchange(ref selectionNotificationPending, 1) != 0) return;
+			_ = Task.Run(async () => {
+				await Task.Delay(50);
+				Interlocked.Exchange(ref selectionNotificationPending, 0);
+				if (!disposed) Notify();
+			});
+		}
+		public void Dispose() { disposed = true; _cts.Dispose(); }
 	}
 }
