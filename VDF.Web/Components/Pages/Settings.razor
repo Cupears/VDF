@@ -353,9 +353,13 @@
     <label>
         Custom database folder
         <input type="text"
+               disabled="@(Scan.DesktopStartScan != null)"
                value="@Scan.Settings.CustomDatabaseFolder"
                @onchange="e => Scan.Settings.CustomDatabaseFolder = e.Value?.ToString() ?? string.Empty" />
     </label>
+    @if (Scan.DesktopStartScan != null) {
+        <p>The desktop owns this database folder. Both screens use the same loaded library.</p>
+    }
     <label>
         Database checkpoint interval (minutes, 0 = disabled)
         <input type="number" min="0" max="60"

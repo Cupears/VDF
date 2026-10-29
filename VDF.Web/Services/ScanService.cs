@@ -45,8 +45,14 @@ namespace VDF.Web.Services {
 	/// scan lifecycle operations to Blazor components via events and state.
 	/// </summary>
 	public sealed class ScanService : IDisposable {
-		readonly ScanEngine _engine = new();
+		readonly ScanEngine _engine;
+		volatile DuplicateItem[]? desktopResults;
+		public Func<Task>? DesktopStartScan { get; set; }
+		public Action<bool>? DesktopPause { get; set; }
+		public Action? DesktopStop { get; set; }
+		public Func<bool>? DesktopIsBusy { get; set; }
 		readonly WebSettingsService _settingsService;
+		public WebSettingsService SettingsStore => _settingsService;
 		readonly SharedScanSettings? _sharedSettings;
 		public bool SharedSettingsEnabled => _sharedSettings != null;
 		public long SettingsRevision { get; private set; }
@@ -58,7 +64,7 @@ namespace VDF.Web.Services {
 		public ScanProgressArgs? LastProgress { get; private set; }
 		/// <summary>Total files hashed (captured when BuildingHashesDone fires).</summary>
 		public int FilesHashed { get; private set; }
-		public IReadOnlyCollection<DuplicateItem> Duplicates => _engine.Duplicates;
+		public IReadOnlyCollection<DuplicateItem> Duplicates => desktopResults ?? (IReadOnlyCollection<DuplicateItem>)_engine.Duplicates;
 		public Settings Settings => _engine.Settings;
 		public SharedSelection SelectedItems { get; }
 		int selectionNotificationPending;
@@ -77,10 +83,13 @@ namespace VDF.Web.Services {
 
 		public event Action? StateChanged;
 
-		public ScanService(WebSettingsService settingsService, SharedScanSettings? sharedSettings = null) {
+		public ScanService(WebSettingsService settingsService, SharedScanSettings? sharedSettings = null, ScanEngine? engine = null) {
+			_engine = engine ?? new ScanEngine();
+			if (engine != null) desktopResults = Array.Empty<DuplicateItem>();
 			SelectedItems = new SharedSelection(SelectionChanged);
 			_settingsService = settingsService;
-			settingsService.Load(_engine.Settings);
+			if (engine == null) settingsService.Load(_engine.Settings);
+			else settingsService.Load(new Settings()); // Load web display preferences without replacing the desktop engine settings.
 			_sharedSettings = sharedSettings;
 			var syncPath = Environment.GetEnvironmentVariable(SharedScanSettings.EnvironmentKey);
 			if (_sharedSettings == null && !string.IsNullOrWhiteSpace(syncPath) && WebSettingsService.TestOverrideSettingsPath == null) {
@@ -124,6 +133,12 @@ namespace VDF.Web.Services {
 
 		public async Task StartScanAndCompare() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;
+			if (DesktopStartScan != null) {
+				SaveSettings();
+				try { await DesktopStartScan(); }
+				catch (Exception ex) { SetError(ex); }
+				return;
+			}
 			SyncSharedSettings();
 			_cts = new CancellationTokenSource();
 			State = ScanState.Scanning;
@@ -162,10 +177,11 @@ namespace VDF.Web.Services {
 			Notify();
 		}
 
-		public void Pause() => _engine.Pause();
-		public void Resume() => _engine.Resume();
+		public void Pause() { if (DesktopPause != null) DesktopPause(true); else _engine.Pause(); }
+		public void Resume() { if (DesktopPause != null) DesktopPause(false); else _engine.Resume(); }
 
 		public void Stop() {
+			if (DesktopStop != null) { DesktopStop(); return; }
 			_engine.Stop();
 			_cts.Cancel();
 		}
@@ -179,6 +195,22 @@ namespace VDF.Web.Services {
 				SettingsSyncStatus = "Scan settings synced with desktop";
 				return changed;
 			} catch (Exception ex) { SettingsSyncStatus = "Settings sync could not finish: " + ex.Message; return false; }
+		}
+
+		public void DesktopScanStarting() {
+			desktopResults = Array.Empty<DuplicateItem>();
+			State = ScanState.Scanning;
+			ErrorMessage = null;
+			LastProgress = null;
+			FilesHashed = 0;
+			SelectedItems.Clear();
+			ClearThumbnailCaches();
+			Notify();
+		}
+
+		public void RefreshDesktopResults() {
+			if (desktopResults != null) desktopResults = _engine.Duplicates.ToArray();
+			Notify();
 		}
 
 		public bool SaveSettings() {
@@ -197,7 +229,7 @@ namespace VDF.Web.Services {
 			ClearThumbnailCaches();
 			// Keep IncludeList/BlackList — resetting scan results should not
 			// throw away the paths the user configured.
-			Notify();
+			RefreshDesktopResults();
 		}
 
 		/// <summary>Removes items from the results list without touching the files on disk.</summary>
@@ -208,7 +240,7 @@ namespace VDF.Web.Services {
 				SelectedItems.Remove(item);
 			}
 			DropSingletonGroups();
-			Notify();
+			RefreshDesktopResults();
 		}
 
 		/// <summary>Drops groups that have shrunk to a single item — a group of one is not a duplicate.</summary>
@@ -234,7 +266,7 @@ namespace VDF.Web.Services {
 		public int FileOpMax { get; private set; }
 
 		bool TryBeginFileOp(string verb, int max) {
-			if (FileOpRunning || max == 0) return false;
+			if (FileOpRunning || max == 0 || State is ScanState.Scanning or ScanState.Comparing || DesktopIsBusy?.Invoke() == true) return false;
 			FileOpRunning = true;
 			FileOpVerb = verb;
 			FileOpCurrent = 0;
@@ -246,7 +278,7 @@ namespace VDF.Web.Services {
 		void EndFileOp() {
 			FileOpRunning = false;
 			FileOpVerb = string.Empty;
-			Notify();
+			RefreshDesktopResults();
 		}
 
 		/// <summary>Deletes files from disk and removes them from results and the scan database.</summary>
@@ -445,7 +477,7 @@ namespace VDF.Web.Services {
 			ScanEngine.ClearDatabase();
 			_engine.Duplicates.Clear();
 			SelectedItems.Clear();
-			Notify();
+			RefreshDesktopResults();
 		}
 
 		/// <summary>Number of file entries currently stored in the scan database.</summary>

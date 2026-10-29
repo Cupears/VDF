@@ -120,6 +120,7 @@ namespace VDF.GUI.ViewModels {
 			set {
 				if (value == _IsScanning) return;
 				this.RaiseAndSetIfChanged(ref _IsScanning, value);
+				if (value) mobileSession?.DesktopScanStarting();
 				RaiseScannerStateChanged();
 				// Back on the Setup screen (scan aborted/stopped with no results):
 				// refresh folder stats — the database may have grown meanwhile.
@@ -472,6 +473,7 @@ namespace VDF.GUI.ViewModels {
 		}
 
 		void Duplicates_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
+			PublishDesktopCollectionChange(e);
 			if (e.OldItems != null) {
 				foreach (INotifyPropertyChanged item in e.OldItems) {
 					item.PropertyChanged -= DuplicateItemVM_PropertyChanged;
@@ -535,11 +537,13 @@ namespace VDF.GUI.ViewModels {
 				DuplicatesCheckedCounter += addedChecked;
 				DuplicatesCheckedSizeInternal += addedCheckedSize;
 			}
+			PublishDesktopResults();
 			RaiseScannerStateChanged();
 		}
 
 		void DuplicateItemVM_PropertyChanged(object? sender, PropertyChangedEventArgs e) {
 			if (e.PropertyName != nameof(DuplicateItemVM.Checked) || sender == null) return;
+			PublishDesktopCheck((DuplicateItemVM)sender);
 			RecordCheckedChangeForUndo((DuplicateItemVM)sender);
 			if (((DuplicateItemVM)sender).Checked) {
 				DuplicatesCheckedCounter++;
@@ -644,6 +648,12 @@ namespace VDF.GUI.ViewModels {
 		public async void LoadDatabase() {
 			IsBusy = true;
 			IsBusyOverlayText = "Loading database...";
+			try { databaseSessionLease ??= DatabaseSessionLease.Acquire(SettingsFile.Instance.CustomDatabaseFolder); }
+			catch (Exception ex) {
+				await MessageBoxService.Show(ex.Message);
+				Environment.Exit(-1);
+				return;
+			}
 			// Pass the configured folder — the parameterless overload loads the DEFAULT
 			// location, which is the wrong database when a custom folder is set.
 			bool success = await ScanEngine.LoadDatabase(SettingsFile.Instance.CustomDatabaseFolder);
@@ -654,6 +664,11 @@ namespace VDF.GUI.ViewModels {
 			}
 			// The Setup screen's DB-known counts were computed against an empty database.
 			RebuildSetupFolders();
+			try { await StartMobileServerAsync(); }
+			catch (Exception ex) {
+				Logger.Instance.Error($"Mobile server could not start: {ex}");
+				await MessageBoxService.Show("Mobile server could not start: " + ex.Message);
+			}
 		}
 
 		void CheckScheduledScan() {

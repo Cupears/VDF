@@ -377,6 +377,7 @@ namespace VDF.GUI.Views {
 			if (hasExited) return;
 			hasExited = true;
 			sharedSettingsTimer?.Stop();
+			ApplicationHelpers.MainWindowDataContext.CloseMobileSession();
 			SettingsFile.SaveSettings();
 		}
 

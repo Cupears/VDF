@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VDF.Core\VDF.Core.csproj" />
+    <ProjectReference Include="..\VDF.Web\VDF.Web.csproj" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Update="Assets\Locales\en.json">

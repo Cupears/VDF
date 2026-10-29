@@ -237,7 +237,10 @@
                     </Button.Flyout>
                 </Button>
             </StackPanel>
-            <Grid x:Name="MainContentGrid" Margin="2,30,2,2">
+            <TextBlock Margin="10,0,10,4" VerticalAlignment="Bottom" FontSize="11"
+                       Text="{Binding MobileSessionStatus}"
+                       ToolTip.Tip="The phone uses this desktop's scan engine and saved database. Keep VDF open to use mobile. Progress, results and checked files are shared." />
+            <Grid x:Name="MainContentGrid" Margin="2,30,2,26">
                 <Grid IsVisible="{Binding IsShellMainVisible}">
                         <Grid>
                             <!-- Disabled while the busy curtain covers it: the curtain alone only

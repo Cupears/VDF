@@ -11,6 +11,9 @@
     <nav class="scan-steps" aria-label="Scan steps"><span class="@(Scan.State is ScanState.Scanning or ScanState.Comparing ? "" : "active")"><b>1</b> Set up</span><span class="@(Scan.State is ScanState.Scanning or ScanState.Comparing ? "active" : "")"><b>2</b> Scan</span><a href="/results"><b>3</b> Review</a></nav>
 </div>
 <SettingsSyncStatus OnSynced="RefreshSharedSettings" />
+@if (Scan.DesktopStartScan != null) {
+    <p class="page-intro"><strong>Connected to your VDF desktop GUI.</strong> Both screens use the same scan engine and saved database. Progress, results and checked files are live. Keep VDF open on the PC.</p>
+}
 
 @* FFmpeg setup banner *@
 @if (FFmpegSetup.State == FFmpegSetupState.Checking) {
