@@ -166,7 +166,7 @@ namespace VDF.Core {
 			for (int i = 0; i < 2; i++) {
 				FileEntry entry = entries[i]!;
 				if (entry.IsImage) {
-					if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging)) {
+					if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging, includeVeryDarkPhotos: Settings.IncludeVeryDarkPhotos)) {
 						if (entry.Flags.Has(EntryFlags.TooDark)) {
 							sb.AppendLine($"{labels[i]}: FAIL — more than 80% of the pixels are nearly black. The file is flagged 'too dark' and excluded from comparisons.");
 							failures.Add($"File {labels[i]} is too dark to compare (mostly black pixels).");
@@ -179,6 +179,7 @@ namespace VDF.Core {
 					}
 					var stream = entry.mediaInfo?.Streams?.FirstOrDefault(s => s.Width > 0 && s.Height > 0);
 					sb.AppendLine($"{labels[i]}: decoded OK{(stream != null ? $", {stream.Width}x{stream.Height}" : "")}");
+					if (entry.IsTooDark) sb.AppendLine($"{labels[i]}: very dark photo included by your setting; review its grayscale match.");
 				}
 				else {
 					MediaInfo? info = FFProbeEngine.GetMediaInfo(entry.Path, Settings.ExtendedFFToolsLogging);

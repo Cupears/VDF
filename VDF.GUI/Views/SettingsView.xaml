@@ -238,6 +238,13 @@
                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=AlwaysRetryFailedSampling}" />
               </views:SettingRow>
 
+              <views:SettingRow Title="Include very dark photos"
+                  Description="On the next scan, also checks photos previously skipped as too dark. Uses a grayscale sample of the whole picture, with your normal ignore-pixel settings. Matches get a 'Dark photo' label for review. Dark videos are still skipped. Nearly black samples do not use AI matching."
+                  SearchTags="dark black photos pictures brightness skipped grayscale">
+                <ToggleSwitch Classes="plain" IsEnabled="{Binding !IsScanning}"
+                              IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=IncludeVeryDarkPhotos}" />
+              </views:SettingRow>
+
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Parallelism.Title]}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.MaxDegreeOfParallelismTooltip]}"

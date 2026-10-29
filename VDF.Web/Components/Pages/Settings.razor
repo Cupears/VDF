@@ -180,6 +180,13 @@
         Always retry failed sampling on rescan
     </label>
     <label>
+        <input type="checkbox" aria-label="Include very dark photos" disabled="@(Scan.State is ScanState.Scanning or ScanState.Comparing)"
+               checked="@Scan.Settings.IncludeVeryDarkPhotos"
+               @onchange="e => Scan.Settings.IncludeVeryDarkPhotos = (bool)e.Value!" />
+        Include very dark photos
+    </label>
+    <p class="section-help">On the next scan, also checks photos previously skipped as too dark. Uses a grayscale sample of the whole picture, with your normal ignore-pixel settings. Results get a “Dark photo” label for review. AI matching still rejects nearly black samples, and dark videos stay excluded. Mostly blank pictures can produce false matches.</p>
+    <label>
         Limit sampling to the first N seconds (0 = entire video)
         <input type="number" min="0" step="1"
                value="@Scan.Settings.MaxSamplingDurationSeconds.ToString(CultureInfo.InvariantCulture)"

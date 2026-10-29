@@ -35,6 +35,7 @@ namespace VDF.Core {
 		public bool ExtendedFFToolsLogging;
 		public bool LogExcludedFiles;
 		public bool AlwaysRetryFailedSampling;
+		public bool IncludeVeryDarkPhotos;
 		public bool IgnoreBlackPixels;
 		public bool IgnoreWhitePixels;
 		public byte IgnoreBlackThreshold = 0x20;

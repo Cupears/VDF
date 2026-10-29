@@ -866,7 +866,7 @@ namespace VDF.Core {
 				reason = "file has been manually excluded";
 				return true;
 			}
-			if (entry.Flags.Has(EntryFlags.TooDark)) {
+			if (entry.Flags.Has(EntryFlags.TooDark) && !(entry.IsImage && Settings.IncludeVeryDarkPhotos)) {
 				reason = "file is marked as too dark";
 				return true;
 			}
@@ -1156,7 +1156,7 @@ namespace VDF.Core {
 							ScanCrashJournal.Begin(ScanCrashJournal.PhaseImage, entry.Path);
 							try {
 								if (entry.grayBytes.Count == 0) {
-									if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging, aiEmbeddingPipeline))
+									if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging, aiEmbeddingPipeline, Settings.IncludeVeryDarkPhotos))
 										entry.invalid = true;
 								}
 								else {
@@ -2963,6 +2963,7 @@ namespace VDF.Core {
 		/// embedding and the AI pass abstains for it.
 		/// </summary>
 		static void TryQueueImageEmbeddingFrame(FileEntry imageFile, AI.IEmbeddingFrameSink? embeddingSink, bool extendedLogging) {
+			if (imageFile.Flags.Has(EntryFlags.TooDark)) return; // Included dark photos use classic comparison, never black AI embeddings.
 			if (embeddingSink?.WantsEmbedding(imageFile, 0) != true)
 				return;
 			byte[]? rgb = FfmpegEngine.GetThumbnail(new FfmpegSettings {
@@ -2975,7 +2976,7 @@ namespace VDF.Core {
 				embeddingSink.SubmitFrame(imageFile, 0, rgb);
 		}
 
-		static bool GetGrayBytesFromImage(FileEntry imageFile, bool useExifIfAvailable, bool extendedLogging, AI.IEmbeddingFrameSink? embeddingSink = null) {
+		internal static bool GetGrayBytesFromImage(FileEntry imageFile, bool useExifIfAvailable, bool extendedLogging, AI.IEmbeddingFrameSink? embeddingSink = null, bool includeVeryDarkPhotos = false) {
 			try {
 				// Decode through FFmpeg — the same pipeline videos use — so image and video
 				// gray bytes share identical grayscale conversion and scaling.
@@ -3045,18 +3046,12 @@ namespace VDF.Core {
 					}
 				}
 
-				if (!GrayBytesUtils.VerifyGrayScaleValues(grayBytes)) {
-					imageFile.Flags.Set(EntryFlags.TooDark);
-					Logger.Instance.Warn($"Graybytes too dark of: {imageFile.Path}");
-					return false;
-				}
-
-				imageFile.grayBytes.Add(0, grayBytes);
+				if (!CacheImageGray(imageFile, grayBytes, includeVeryDarkPhotos)) return false;
 				if (rgbFromCombinedCall) {
 					// The RGB frame came out of the same decode; a null here means the RGB
 					// branch failed — non-fatal, the AI pass abstains (no second attempt:
 					// the native path already failed for this file and the CLI just ran).
-					if (pendingRgb != null && embeddingSink?.WantsEmbedding(imageFile, 0) == true)
+					if (!imageFile.IsTooDark && pendingRgb != null && embeddingSink?.WantsEmbedding(imageFile, 0) == true)
 						embeddingSink.SubmitFrame(imageFile, 0, pendingRgb);
 				}
 				else {
@@ -3070,6 +3065,18 @@ namespace VDF.Core {
 				imageFile.Flags.Set(EntryFlags.ThumbnailError);
 				return false;
 			}
+		}
+
+		internal static bool CacheImageGray(FileEntry imageFile, byte[] grayBytes, bool includeVeryDarkPhotos) {
+			bool dark = !GrayBytesUtils.VerifyGrayScaleValues(grayBytes);
+			imageFile.Flags.Set(EntryFlags.TooDark, dark);
+			if (dark && !includeVeryDarkPhotos) {
+				Logger.Instance.Warn($"Photo skipped: at least 80% of its grayscale sample is nearly black. Enable 'Include very dark photos' to check it: {imageFile.Path}");
+				return false;
+			}
+			imageFile.grayBytes[0] = grayBytes;
+			if (dark) Logger.Instance.Info($"Very dark photo included for grayscale matching; review its matches: {imageFile.Path}");
+			return true;
 		}
 
 		internal void HighlightBestMatches() {

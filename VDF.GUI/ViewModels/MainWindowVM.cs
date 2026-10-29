@@ -1767,6 +1767,7 @@ Non-Windows setup:
 			Scanner.Settings.ExtendedFFToolsLogging = SettingsFile.Instance.ExtendedFFToolsLogging;
 			Scanner.Settings.LogExcludedFiles = SettingsFile.Instance.LogExcludedFiles;
 			Scanner.Settings.AlwaysRetryFailedSampling = SettingsFile.Instance.AlwaysRetryFailedSampling;
+			Scanner.Settings.IncludeVeryDarkPhotos = SettingsFile.Instance.IncludeVeryDarkPhotos;
 			Scanner.Settings.CustomFFArguments = SettingsFile.Instance.CustomFFArguments;
 			Scanner.Settings.UseNativeFfmpegBinding = SettingsFile.Instance.UseNativeFfmpegBinding;
 			Scanner.Settings.IgnoreBlackPixels = SettingsFile.Instance.IgnoreBlackPixels;

@@ -36,6 +36,15 @@ public sealed class WebSettingsServiceTests : IDisposable {
 	}
 
 	[Fact]
+	public void DarkPhotoOptionPersists() {
+		var service = new WebSettingsService();
+		Assert.True(service.Save(new Settings { IncludeVeryDarkPhotos = true }));
+		var loaded = new Settings();
+		Assert.True(new WebSettingsService().Load(loaded));
+		Assert.True(loaded.IncludeVeryDarkPhotos);
+	}
+
+	[Fact]
 	public void NewDesktopOptions_RoundTripAndKeepDriveKeysCaseInsensitive() {
 		var service = new WebSettingsService {
 			ResultsView = "compact", ResultsPreviewWidth = 180, ResultsPageSize = 10,
@@ -44,7 +53,7 @@ public sealed class WebSettingsServiceTests : IDisposable {
 		};
 		var settings = new Settings {
 			HddMaxDegreeOfParallelism = 3, MatchingMaxDegreeOfParallelism = 12,
-			PHashRequiredMatchingSampleRatio = 0.8f, RememberDeletedContent = true,
+            PHashRequiredMatchingSampleRatio = 0.8f, RememberDeletedContent = true,
 			DriveTypeOverrides = new() { ["D:\\"] = "HDD" }
 		};
 		Assert.True(service.Save(settings));

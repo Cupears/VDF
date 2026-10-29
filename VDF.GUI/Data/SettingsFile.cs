@@ -262,6 +262,11 @@ namespace VDF.GUI.Data {
 			get;
 			set => this.RaiseAndSetIfChanged(ref field, value);
 		} = false;
+		[JsonPropertyName("IncludeVeryDarkPhotos")]
+		public bool IncludeVeryDarkPhotos {
+			get;
+			set => this.RaiseAndSetIfChanged(ref field, value);
+		}
 		[JsonPropertyName("UseNativeFfmpegBinding")]
 		public bool UseNativeFfmpegBinding {
 			get;

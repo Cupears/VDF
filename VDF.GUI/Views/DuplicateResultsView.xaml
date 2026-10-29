@@ -939,6 +939,10 @@
                         HorizontalAlignment="Center"
                         Text="AI" />
                   </Border>
+                  <Border IsVisible="{Binding Item.ItemInfo.IsDarkPhoto}" Classes="simchip" Padding="5,0" CornerRadius="3" VerticalAlignment="Center"
+                          ToolTip.Tip="Very dark photo included by your setting. Review the visible picture before acting on its match; mostly blank samples can look alike.">
+                    <TextBlock Text="Dark photo" FontSize="10" FontWeight="Bold" />
+                  </Border>
                   <Border IsVisible="{Binding IsBest}"
                           Background="{DynamicResource VdfGoodSoftBrush}"
                           BorderBrush="{DynamicResource VdfGoodBorderBrush}" BorderThickness="1"

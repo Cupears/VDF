@@ -11,7 +11,7 @@ public sealed class SharedScanSettings {
         "IncludeList", "BlackList", "IncludeSubDirectories", "IncludeImages", "IgnoreReadOnlyFolders", "IgnoreReparsePoints", "ExcludeHardLinks",
         "Percent", "PercentDurationDifference", "DurationDifferenceMinSeconds", "DurationDifferenceMaxSeconds", "MaxSamplingDurationSeconds",
         "MaxDegreeOfParallelism", "MatchingMaxDegreeOfParallelism", "HddMaxDegreeOfParallelism", "DriveTypeOverrides", "ThumbnailCount",
-        "ExtendedFFToolsLogging", "LogExcludedFiles", "AlwaysRetryFailedSampling", "CustomFFArguments", "UseNativeFfmpegBinding", "HardwareAccelerationMode",
+        "ExtendedFFToolsLogging", "LogExcludedFiles", "AlwaysRetryFailedSampling", "IncludeVeryDarkPhotos", "CustomFFArguments", "UseNativeFfmpegBinding", "HardwareAccelerationMode",
         "IgnoreBlackPixels", "IgnoreWhitePixels", "CompareHorizontallyFlipped", "DatabaseCheckpointIntervalMinutes", "IncludeNonExistingFiles", "RememberDeletedContent",
         "FilterByFilePathContains", "FilePathContainsTexts", "FilterByFilePathNotContains", "FilePathNotContainsTexts", "ScanAgainstEntireDatabase", "FolderMatchMode", "SameFolderDepth",
         "UsePHashing", "CombineGrayscaleAndPHash", "PHashRequiredMatchingSampleRatio", "UseAiMatching", "AiPercent", "EnableAiPartialDetection", "AiPartialHitPercent",
@@ -77,6 +77,7 @@ public sealed class SharedScanSettings {
         d.MaxDegreeOfParallelism = s.MaxDegreeOfParallelism; d.MatchingMaxDegreeOfParallelism = s.MatchingMaxDegreeOfParallelism; d.HddMaxDegreeOfParallelism = s.HddMaxDegreeOfParallelism;
         d.DriveTypeOverrides = new(s.DriveTypeOverrides); d.ThumbnailCount = s.ThumbnailCount;
         d.ExtendedFFToolsLogging = s.ExtendedFFToolsLogging; d.LogExcludedFiles = s.LogExcludedFiles; d.AlwaysRetryFailedSampling = s.AlwaysRetryFailedSampling;
+        d.IncludeVeryDarkPhotos = s.IncludeVeryDarkPhotos;
         d.CustomFFArguments = s.CustomFFArguments; d.UseNativeFfmpegBinding = s.UseNativeFfmpegBinding; d.HardwareAccelerationMode = s.HardwareAccelerationMode;
         d.IgnoreBlackPixels = s.IgnoreBlackPixels; d.IgnoreWhitePixels = s.IgnoreWhitePixels; d.CompareHorizontallyFlipped = s.CompareHorizontallyFlipped;
         d.DatabaseCheckpointIntervalMinutes = s.DatabaseCheckpointIntervalMinutes; d.IncludeNonExistingFiles = s.IncludeNonExistingFiles; d.RememberDeletedContent = s.RememberDeletedContent;

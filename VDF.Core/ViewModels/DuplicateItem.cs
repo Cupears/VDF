@@ -32,7 +32,7 @@ namespace VDF.Core.ViewModels {
 			Path = file.Path;
 			Folder = file.Folder;
 			GroupId = groupID;
-			Flags = flags;
+			Flags = flags | (file.IsImage && file.IsTooDark ? DuplicateFlags.DarkPhoto : DuplicateFlags.None);
 			if (!file.IsImage && file.mediaInfo?.Streams?.Length > 0) {
 				Duration = file.mediaInfo.Duration;
 				/*
@@ -277,6 +277,8 @@ namespace VDF.Core.ViewModels {
 		/// <summary>This pair was found only by the AI embedding pass (chip in the results list).</summary>
 		[JsonIgnore]
 		public bool IsAiMatched => Flags.HasFlag(DuplicateFlags.AiMatched);
+		[JsonIgnore]
+		public bool IsDarkPhoto => Flags.HasFlag(DuplicateFlags.DarkPhoto);
 
 		[JsonIgnore]
 		public Action? ThumbnailsUpdated;

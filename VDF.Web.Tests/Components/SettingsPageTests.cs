@@ -49,6 +49,14 @@ public sealed class SettingsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Settings>();
 
 	[Fact]
+	public void DarkPhotoSwitchUpdatesTheSharedScanSettings() {
+		var page = RenderPage();
+		page.Find("input[aria-label='Include very dark photos']").Change(true);
+		Assert.True(scan.Settings.IncludeVeryDarkPhotos);
+		Assert.Contains("previously skipped as too dark", page.Markup);
+	}
+
+	[Fact]
 	public void SectionLinks_StayOnSettingsDespiteTheRootBaseUrl() {
 		var page = RenderPage();
 		var links = page.FindAll(".settings-nav a");

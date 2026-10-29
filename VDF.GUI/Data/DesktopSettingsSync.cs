@@ -31,6 +31,7 @@ internal sealed class DesktopSettingsSync {
             ExtendedFFToolsLogging = gui.ExtendedFFToolsLogging,
             LogExcludedFiles = gui.LogExcludedFiles,
             AlwaysRetryFailedSampling = gui.AlwaysRetryFailedSampling,
+            IncludeVeryDarkPhotos = gui.IncludeVeryDarkPhotos,
             CustomFFArguments = gui.CustomFFArguments,
             UseNativeFfmpegBinding = gui.UseNativeFfmpegBinding,
             HardwareAccelerationMode = gui.HardwareAccelerationMode,
@@ -97,6 +98,7 @@ internal sealed class DesktopSettingsSync {
         gui.ExtendedFFToolsLogging = scan.ExtendedFFToolsLogging;
         gui.LogExcludedFiles = scan.LogExcludedFiles;
         gui.AlwaysRetryFailedSampling = scan.AlwaysRetryFailedSampling;
+        gui.IncludeVeryDarkPhotos = scan.IncludeVeryDarkPhotos;
         gui.CustomFFArguments = scan.CustomFFArguments;
         gui.UseNativeFfmpegBinding = scan.UseNativeFfmpegBinding;
         gui.HardwareAccelerationMode = scan.HardwareAccelerationMode;

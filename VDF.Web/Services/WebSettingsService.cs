@@ -52,6 +52,7 @@ namespace VDF.Web.Services {
 			public bool ExcludeHardLinks { get; set; }
 			public bool UseExifCreationDate { get; set; }
 			public bool AlwaysRetryFailedSampling { get; set; }
+			public bool IncludeVeryDarkPhotos { get; set; }
 			public bool ExtendedFFToolsLogging { get; set; }
 			public bool LogExcludedFiles { get; set; }
 			public bool UseNativeFfmpegBinding { get; set; }
@@ -162,6 +163,7 @@ namespace VDF.Web.Services {
 				s.ExcludeHardLinks = dto.ExcludeHardLinks;
 				s.UseExifCreationDate = dto.UseExifCreationDate;
 				s.AlwaysRetryFailedSampling = dto.AlwaysRetryFailedSampling;
+				s.IncludeVeryDarkPhotos = dto.IncludeVeryDarkPhotos;
 				s.ExtendedFFToolsLogging = dto.ExtendedFFToolsLogging;
 				s.LogExcludedFiles = dto.LogExcludedFiles;
 				s.UseNativeFfmpegBinding = dto.UseNativeFfmpegBinding;
@@ -240,6 +242,7 @@ namespace VDF.Web.Services {
 					ExcludeHardLinks = s.ExcludeHardLinks,
 					UseExifCreationDate = s.UseExifCreationDate,
 					AlwaysRetryFailedSampling = s.AlwaysRetryFailedSampling,
+					IncludeVeryDarkPhotos = s.IncludeVeryDarkPhotos,
 					ExtendedFFToolsLogging = s.ExtendedFFToolsLogging,
 					LogExcludedFiles = s.LogExcludedFiles,
 					UseNativeFfmpegBinding = s.UseNativeFfmpegBinding,

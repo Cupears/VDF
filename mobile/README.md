@@ -45,6 +45,10 @@ checking old paths. New fingerprints are kept for the analysis step, and files b
 the fingerprint's 64 KiB minimum are not opened just to attempt that fingerprint.
 The live log includes an HDD cache reuse summary. The existing database format stays the same.
 Build files, databases and logs are also excluded from Git.
+Settings > Scan includes "Include very dark photos". It retries previously dark-skipped
+photos on the next scan and keeps their grayscale samples for classic matching.
+Matches carry a "Dark photo" review label. The switch syncs with the desktop;
+dark-video exclusion and the AI black-frame guard stay in place. No database reset is needed.
 
 To rebuild from the repository root (close VDF first):
 
