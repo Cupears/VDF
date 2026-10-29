@@ -23,6 +23,7 @@ namespace VDF.Core.Utils {
 	// it is moved on disk — letting a rescan relink it and reuse its analysis instead of re-decoding.
 	public static class OsHashUtils {
 		const int ChunkSize = 64 * 1024;
+		internal const int MinimumFileSize = ChunkSize;
 
 		// Best-effort. Returns null if the file is missing, locked, smaller than one chunk, or any IO
 		// error occurs — callers treat null as "not fingerprintable" and fall back to full analysis,

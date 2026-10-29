@@ -712,74 +712,72 @@ namespace VDF.Core {
 			InitProgress(oldFileCount, "Indexing saved file fingerprints");
 			Logger.Instance.Info($"Indexing {oldFileCount:N0} saved entries before listing folders.");
 
-			// Index existing analysed entries by size so a path-miss below can be checked for being a
+			// Index existing analysed entries by size and fingerprint so a path-miss can be checked for a
 			// MOVE (same content fingerprint, old path now gone) and relinked — reusing its analysis
 			// instead of re-decoding. Only OsHash-bearing entries are relink targets; keyed by size so
 			// we compute the new file's oshash only when a same-size analysed entry exists (zero reads
 			// on a fresh scan, where the DB is empty).
-			var relinkBySize = new Dictionary<long, List<FileEntry>>();
+			var relinkIndex = new MovedFileIndex();
 			foreach (var e in DatabaseUtils.Database) {
 				if (cancellationToken.IsCancellationRequested) return;
 				if ((++processedFiles & 4095) == 0) ReportProgress("", currentStageLabel, allowCheckpoint: false);
-				if (e.OsHash != null) {
-					if (!relinkBySize.TryGetValue(e.FileSize, out var lst))
-						relinkBySize[e.FileSize] = lst = new List<FileEntry>();
-					lst.Add(e);
-				}
+				relinkIndex.Add(e);
 			}
 			int relinkedCount = 0;
+			try {
 
-			foreach (string path in Settings.IncludeList) {
-				InitProgress(0, "Listing folders and finding media files");
-				Logger.Instance.Info($"Listing scan folder: {path} (subfolders: {Settings.IncludeSubDirectories}, images: {Settings.IncludeImages}).");
-				if (cancellationToken.IsCancellationRequested)
-					return;
-				if (!Directory.Exists(path)) {
-					// A disconnected network drive or removed folder would otherwise be
-					// skipped without a trace, making the scan look broken (0 files found).
-					Logger.Instance.Warn($"Search directory not found or inaccessible, skipping: '{path}'. If this is a network drive, make sure it is connected (or use the \\\\server\\share UNC path instead of a drive letter).");
-					continue;
-				}
-
-				var discovered = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
-					Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken,
-					(folder, directories, files, entries) => {
-						processedFiles = files;
-						ReportProgress(folder, $"Listing folders: {directories:N0} visited, {entries:N0} entries checked, {files:N0} media files found", allowCheckpoint: false);
-					});
-				Logger.Instance.Info($"Folder listing {(cancellationToken.IsCancellationRequested ? "stopped" : "finished")}: {path}; {discovered.Count:N0} media files found.");
-				if (cancellationToken.IsCancellationRequested) return;
-				InitProgress(discovered.Count, "Checking discovered files against saved database");
-				foreach (FileInfo file in discovered) {
+				foreach (string path in Settings.IncludeList) {
+					InitProgress(0, "Listing folders and finding media files");
+					Logger.Instance.Info($"Listing scan folder: {path} (subfolders: {Settings.IncludeSubDirectories}, images: {Settings.IncludeImages}).");
 					if (cancellationToken.IsCancellationRequested)
 						return;
-					FileEntry fEntry;
-					ReportProgress(file.FullName, "Checking file timestamps and saved fingerprints", allowCheckpoint: false, keepLatestWhenThrottled: true);
-					try {
-						fEntry = new(file);
-					}
-					catch (Exception e) {
-						//https://github.com/0x90d/videoduplicatefinder/issues/237
-						Logger.Instance.Warn($"Skipped file '{file}' because of {e}");
+					if (!Directory.Exists(path)) {
+						// A disconnected network drive or removed folder would otherwise be
+						// skipped without a trace, making the scan look broken (0 files found).
+						Logger.Instance.Warn($"Search directory not found or inaccessible, skipping: '{path}'. If this is a network drive, make sure it is connected (or use the \\\\server\\share UNC path instead of a drive letter).");
 						continue;
 					}
-					if (!DatabaseUtils.Database.TryGetValue(fEntry, out var dbEntry)) {
-						// Path not in the DB: either a genuinely new file or one moved/renamed from a
-						// path that's now gone. Relink the latter so its analysis survives the move.
-						if (TryRelinkMovedFile(fEntry, relinkBySize))
-							relinkedCount++;
-						else
-							DatabaseUtils.Database.Add(fEntry);
-					}
-					else
-						RefreshExistingEntry(fEntry, dbEntry);
-					IncrementProgress(file.FullName);
-				}
-			}
 
-			Logger.Instance.Info($"Files in database: {DatabaseUtils.Database.Count:N0} ({DatabaseUtils.Database.Count - oldFileCount:N0} files added)");
-			if (relinkedCount > 0)
-				Logger.Instance.Info($"Detected {relinkedCount:N0} moved/renamed file(s) — reused existing analysis (no re-decode)");
+					var discovered = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
+						Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken,
+						(folder, directories, files, entries) => {
+							processedFiles = files;
+							ReportProgress(folder, $"Listing folders: {directories:N0} visited, {entries:N0} entries checked, {files:N0} media files found", allowCheckpoint: false);
+						});
+					Logger.Instance.Info($"Folder listing {(cancellationToken.IsCancellationRequested ? "stopped" : "finished")}: {path}; {discovered.Count:N0} media files found.");
+					if (cancellationToken.IsCancellationRequested) return;
+					InitProgress(discovered.Count, "Checking discovered files against saved database");
+					foreach (FileInfo file in discovered) {
+						if (cancellationToken.IsCancellationRequested)
+							return;
+						FileEntry fEntry;
+						ReportProgress(file.FullName, "Checking file timestamps and saved fingerprints", allowCheckpoint: false, keepLatestWhenThrottled: true);
+						try {
+							fEntry = new(file);
+						}
+						catch (Exception e) {
+							//https://github.com/0x90d/videoduplicatefinder/issues/237
+							Logger.Instance.Warn($"Skipped file '{file}' because of {e}");
+							continue;
+						}
+						if (!DatabaseUtils.Database.TryGetValue(fEntry, out var dbEntry)) {
+							// Path not in the DB: either a genuinely new file or one moved/renamed from a
+							// path that's now gone. Relink the latter so its analysis survives the move.
+							if (TryRelinkMovedFile(fEntry, relinkIndex))
+								relinkedCount++;
+							else
+								DatabaseUtils.Database.Add(fEntry);
+						}
+						else
+							RefreshExistingEntry(fEntry, dbEntry);
+						IncrementProgress(file.FullName);
+					}
+				}
+
+				Logger.Instance.Info($"Files in database: {DatabaseUtils.Database.Count:N0} ({DatabaseUtils.Database.Count - oldFileCount:N0} files added)");
+				if (relinkedCount > 0)
+					Logger.Instance.Info($"Detected {relinkedCount:N0} moved/renamed file(s) — reused existing analysis (no re-decode)");
+			} finally { Logger.Instance.Info(relinkIndex.Summary); }
 		});
 
 		// A path that is already in the database: decide whether its cached analysis survives this
@@ -795,7 +793,7 @@ namespace VDF.Core {
 			}
 			else if (fEntry.DateCreated != dbEntry.DateCreated ||
 					fEntry.DateModified != dbEntry.DateModified) {
-				string? osHash = OsHashUtils.TryCompute(fEntry.Path);
+				string? osHash = dbEntry.OsHash != null && fEntry.FileSize >= OsHashUtils.MinimumFileSize ? OsHashUtils.TryCompute(fEntry.Path) : null;
 				if (osHash != null && osHash == dbEntry.OsHash) {
 					// Same bytes, just re-dated: keep the analysis and refresh the timestamps
 					// so the next scan doesn't re-verify.
@@ -815,30 +813,16 @@ namespace VDF.Core {
 		// GatherInfos skips re-decoding it. Ambiguous matches (0 or >1 missing candidates with the same
 		// oshash) fall through to "new file" so we never reuse the wrong data.
 		internal bool TryRelinkMovedFile(FileEntry fEntry, Dictionary<long, List<FileEntry>> relinkBySize) {
-			if (!relinkBySize.TryGetValue(fEntry.FileSize, out var sameSize))
-				return false;
-			// A move source is an entry whose recorded path is now gone. (A still-present path means it's
-			// a copy, not a move — leave it and treat the new path as a new file.)
-			List<FileEntry>? missing = null;
-			foreach (var c in sameSize)
-				if (!File.Exists(c.Path))
-					(missing ??= new List<FileEntry>()).Add(c);
-			if (missing == null)
-				return false;
+			var index = new MovedFileIndex();
+			if (relinkBySize.TryGetValue(fEntry.FileSize, out var candidates)) foreach (var candidate in candidates) index.Add(candidate);
+			return TryRelinkMovedFile(fEntry, index);
+		}
 
-			string? oshash = OsHashUtils.TryCompute(fEntry.Path);
-			if (oshash == null)
-				return false;
-
-			FileEntry? match = null;
-			foreach (var c in missing)
-				if (c.OsHash == oshash) {
-					if (match != null)
-						return false;   // more than one candidate with this fingerprint -> ambiguous, treat as new
-					match = c;
-				}
+		internal bool TryRelinkMovedFile(FileEntry fEntry, MovedFileIndex index) {
+			FileEntry? match = index.FindUniqueMissing(fEntry);
 			if (match == null)
 				return false;
+			index.Remove(match);
 
 			// Re-key the surviving entry to the new path. Its analysis rides along untouched; only the
 			// path/date/size are refreshed so a later rescan at the new path won't flag it as modified.
@@ -1090,7 +1074,7 @@ namespace VDF.Core {
 						// then persisted. Best-effort: a missing/locked file leaves it null.
 						// Only fingerprint files inside the include list, so "scan against entire database"
 						// (which compares every historical entry) never spins up out-of-scope drives for a read.
-						if (entry.OsHash == null && IsInIncludeScope(entry))
+						if (entry.OsHash == null && entry.FileSize >= OsHashUtils.MinimumFileSize && IsInIncludeScope(entry))
 							entry.OsHash = OsHashUtils.TryCompute(entry.Path);
 
 						if (Settings.IncludeMissingFiles && entry.grayBytes?.Count > 0) {

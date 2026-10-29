@@ -40,6 +40,10 @@ Long tasks report every 10 seconds, including the latest file/folder and counter
 After 30 seconds with no reported work change, a warning explains that VDF may be
 waiting on a file, drive, network share, or decoder. It does not claim a proven hang.
 Folder listing shows visited folders, checked entries and found media before its total is known.
+HDD scans find moved-file candidates by cached size and fingerprint in memory before
+checking old paths. New fingerprints are kept for the analysis step, and files below
+the fingerprint's 64 KiB minimum are not opened just to attempt that fingerprint.
+The live log includes an HDD cache reuse summary. The existing database format stays the same.
 Build files, databases and logs are also excluded from Git.
 
 To rebuild from the repository root (close VDF first):
