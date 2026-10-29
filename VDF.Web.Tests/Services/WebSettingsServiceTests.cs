@@ -36,6 +36,36 @@ public sealed class WebSettingsServiceTests : IDisposable {
 	}
 
 	[Fact]
+	public void NewDesktopOptions_RoundTripAndKeepDriveKeysCaseInsensitive() {
+		var service = new WebSettingsService {
+			ResultsView = "compact", ResultsPreviewWidth = 180, ResultsPageSize = 10,
+			ShowTrackLanguages = false, UseModifiedDate = true,
+			QualityCriteriaOrder = ["SizeLarger", "Resolution"], QualityCriteriaDisabled = ["Duration", "Size"]
+		};
+		var settings = new Settings {
+			HddMaxDegreeOfParallelism = 3, MatchingMaxDegreeOfParallelism = 12,
+			PHashRequiredMatchingSampleRatio = 0.8f, RememberDeletedContent = true,
+			DriveTypeOverrides = new() { ["D:\\"] = "HDD" }
+		};
+		Assert.True(service.Save(settings));
+		var loadedService = new WebSettingsService();
+		var loaded = new Settings();
+		Assert.True(loadedService.Load(loaded));
+		Assert.Equal(3, loaded.HddMaxDegreeOfParallelism);
+		Assert.Equal(12, loaded.MatchingMaxDegreeOfParallelism);
+		Assert.Equal(0.8f, loaded.PHashRequiredMatchingSampleRatio);
+		Assert.True(loaded.RememberDeletedContent);
+		Assert.Equal("HDD", loaded.DriveTypeOverrides["d:\\"]);
+		Assert.Equal("compact", loadedService.ResultsView);
+		Assert.Equal(180, loadedService.ResultsPreviewWidth);
+		Assert.Equal(10, loadedService.ResultsPageSize);
+		Assert.False(loadedService.ShowTrackLanguages);
+		Assert.True(loadedService.UseModifiedDate);
+		Assert.Equal("SizeLarger", loadedService.QualityCriteriaOrder[0]);
+		Assert.Contains("Duration", loadedService.QualityCriteriaDisabled);
+	}
+
+	[Fact]
 	public void SaveThenLoad_RoundTripsCoreAndWebOnlySettings() {
 		var service = new WebSettingsService {
 			AutoLoadThumbnails = false,

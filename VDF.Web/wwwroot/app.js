@@ -1,4 +1,19 @@
 window.vdf = {
+    getAppearance: function () {
+        return [localStorage.getItem('vdf-theme') || 'system', localStorage.getItem('vdf-scale') || '100', localStorage.getItem('vdf-motion') || 'system'];
+    },
+    setAppearance: function (theme, scale, reduceMotion) {
+        if (['system', 'light', 'dark'].includes(theme)) localStorage.setItem('vdf-theme', theme);
+        if (['100', '110', '125', '150'].includes(scale)) localStorage.setItem('vdf-scale', scale);
+        localStorage.setItem('vdf-motion', reduceMotion ? 'reduce' : 'system');
+        this.initTheme();
+    },
+    filterSettings: function (query) {
+        var text = query.trim().toLowerCase();
+        document.querySelectorAll('.settings-section').forEach(function (section) {
+            section.hidden = !!text && !section.textContent.toLowerCase().includes(text);
+        });
+    },
     copyToClipboard: async function (text) {
         try {
             await navigator.clipboard.writeText(text);
@@ -28,6 +43,12 @@ window.vdf = {
     initTheme: function () {
         var theme = this.getTheme();
         document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.fontSize = (localStorage.getItem('vdf-scale') || '100') + '%';
+        document.documentElement.classList.toggle('reduce-motion', localStorage.getItem('vdf-motion') === 'reduce');
+        if (!this._themeListener) {
+            this._themeListener = true;
+            window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => this.initTheme());
+        }
     },
 
     getCompareMode: function () {

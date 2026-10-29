@@ -57,6 +57,61 @@ public sealed class ResultsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Results>();
 
 	[Fact]
+	public void Comparer_StackedAndCheckGroupNext_KeepChecksWithoutDeleting() {
+		var first = Guid.Parse("00000000-0000-0000-0000-000000000001");
+		var second = Guid.Parse("00000000-0000-0000-0000-000000000002");
+		Seed("first-a.mp4", first); Seed("first-b.mp4", first);
+		Seed("second-a.mp4", second); Seed("second-b.mp4", second);
+		var page = RenderPage();
+		page.FindAll(".compare-btn").First().Click();
+		page.FindAll(".compare-mode-tabs button").Single(b => b.TextContent == "Stacked").Click();
+		Assert.Single(page.FindAll(".compare-side-by-side.stacked"));
+		page.FindAll(".compare-actions button").Single(b => b.TextContent.Contains("Check group + next")).Click();
+		Assert.Contains("second-a.mp4", page.Find("#compare-modal").TextContent);
+		var firstCards = page.FindAll(".dup-card").Where(c => c.TextContent.Contains("first-"));
+		Assert.All(firstCards, c => Assert.True(c.QuerySelector(".card-check input")!.HasAttribute("checked")));
+		Assert.Equal(4, scan.Duplicates.Count);
+	}
+
+	[Fact]
+	public void AiFilter_KeepsTheWholeMatchingGroup_AndViewSwitchWorks() {
+		Guid ai = Guid.NewGuid(), normal = Guid.NewGuid();
+		Seed("ai.mp4", ai, DuplicateFlags.AiMatched);
+		Seed("ai-source.mp4", ai);
+		Seed("normal.mp4", normal);
+		Seed("normal-copy.mp4", normal);
+		var page = RenderPage();
+		page.Find("#filter-ai").Change(true);
+		Assert.Single(page.FindAll(".dup-group"));
+		Assert.Equal(2, page.FindAll(".dup-card").Count);
+		page.FindAll(".view-switch button").Single(b => b.TextContent == "compact").Click();
+		Assert.Single(page.FindAll(".review-compact"));
+	}
+
+	[Fact]
+	public void CheckAllThenKeepBest_UnchecksTheKeeper() {
+		var group = Guid.NewGuid();
+		var a = Seed("winner.mp4", group); a.FrameSizeInt = 1920 * 1080;
+		var b = Seed("smaller.mp4", group); b.FrameSizeInt = 640 * 480;
+		var page = RenderPage();
+		page.Find(".group-check-all").Click();
+		Assert.All(page.FindAll(".card-check input"), c => Assert.True(c.HasAttribute("checked")));
+		page.FindAll("button").Single(c => c.TextContent.Trim() == "Keep Best").Click();
+		var cards = page.FindAll(".dup-card");
+		Assert.False(cards.Single(c => c.TextContent.Contains("winner.mp4")).QuerySelector(".card-check input")!.HasAttribute("checked"));
+		Assert.True(cards.Single(c => c.TextContent.Contains("smaller.mp4")).QuerySelector(".card-check input")!.HasAttribute("checked"));
+	}
+
+	[Fact]
+	public void Pagination_BoundsTheRenderedGroups() {
+		for (int i = 0; i < 26; i++) { var group = Guid.NewGuid(); Seed($"a{i}.mp4", group); Seed($"b{i}.mp4", group); }
+		var page = RenderPage();
+		Assert.Equal(25, page.FindAll(".dup-group").Count);
+		page.FindAll(".pagination button").Last().Click();
+		Assert.Single(page.FindAll(".dup-group"));
+	}
+
+	[Fact]
 	public void NoDuplicates_ShowsTheEmptyStateInsteadOfTheToolbar() {
 		var page = RenderPage();
 

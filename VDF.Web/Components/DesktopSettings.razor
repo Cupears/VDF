@@ -1,0 +1,79 @@
+@inject ScanService Scan
+@inject WebSettingsService WebSettings
+@inject IJSRuntime JS
+@using System.Globalization
+
+<section class="settings-section" id="desktop-settings">
+    <span class="eyebrow">MATCHING AND PERFORMANCE</span><h2>More scan controls</h2>
+    <p class="section-help">The same scan engine as the desktop app, with separate limits for disk reads and CPU matching.</p>
+    <label>Sampled frames that must pass pHash (%)
+        <input aria-label="pHash sample agreement" type="number" min="1" max="100" value="@((Scan.Settings.PHashRequiredMatchingSampleRatio * 100).ToString(CultureInfo.InvariantCulture))"
+               @onchange="e => Scan.Settings.PHashRequiredMatchingSampleRatio = Math.Clamp(Number(e.Value) / 100f, 0.01f, 1f)" />
+        <small>Default: 60%. Used by pHash and combined matching.</small>
+    </label>
+    <label>Matching workers (0 = automatic)
+        <input aria-label="Matching workers" type="number" min="0" max="256" value="@Scan.Settings.MatchingMaxDegreeOfParallelism"
+               @onchange="e => Scan.Settings.MatchingMaxDegreeOfParallelism = Math.Clamp((int)Number(e.Value), 0, 256)" />
+    </label>
+    <label>Maximum parallel files per slow disk
+        <input aria-label="Slow disk read limit" type="number" min="1" max="128" value="@Scan.Settings.HddMaxDegreeOfParallelism"
+               @onchange="e => Scan.Settings.HddMaxDegreeOfParallelism = Math.Clamp((int)Number(e.Value), 1, 128)" />
+        <small>HDDs, network shares, and drives whose type is unknown. Default: 2.</small>
+    </label>
+    <label><input type="checkbox" @bind="Scan.Settings.RememberDeletedContent" />Remember deleted content</label>
+    <p class="section-help">Keeps fingerprints so a downloaded copy of deleted content can be recognized later. It does not keep the video.</p>
+    <h3>Drive type overrides</h3><p class="section-help">Use a drive or folder path on the PC. Unlisted drives use automatic detection.</p>
+    @foreach (var drive in Scan.Settings.DriveTypeOverrides.ToList()) {
+        <div class="drive-row"><code>@drive.Key</code><span>@drive.Value</span><button @onclick="() => Scan.Settings.DriveTypeOverrides.Remove(drive.Key)">Remove</button></div>
+    }
+    <div class="drive-row"><input aria-label="Drive path" placeholder="Drive path, for example D:\" @bind="_drivePath" />
+        <select aria-label="Drive type" @bind="_driveType"><option>SSD</option><option>HDD</option></select>
+        <button @onclick="AddDrive" disabled="@string.IsNullOrWhiteSpace(_drivePath)">Add drive</button></div>
+</section>
+
+<section class="settings-section" id="quality">
+    <span class="eyebrow">CHOOSE WHAT TO KEEP</span><h2>Quality rules</h2>
+    <p class="section-help">The first rule that finds a clear winner decides which file to keep. These rules power BEST and Keep Best. Turn rules off or move them up and down.</p>
+    @foreach (var name in WebSettings.QualityCriteriaOrder.ToList()) {
+        int index = WebSettings.QualityCriteriaOrder.IndexOf(name);
+        <div class="quality-rule"><span class="rule-number">@(index + 1)</span>
+            <label><input type="checkbox" checked="@(!WebSettings.QualityCriteriaDisabled.Contains(name))" @onchange="e => SetQualityEnabled(name, e.Value is true)" />@WebReviewRules.Label(name)</label>
+            <button aria-label="@($"Move {name} up")" disabled="@(index == 0)" @onclick="() => MoveQuality(name, -1)">↑</button>
+            <button aria-label="@($"Move {name} down")" disabled="@(index == WebSettings.QualityCriteriaOrder.Count - 1)" @onclick="() => MoveQuality(name, 1)">↓</button>
+        </div>
+    }
+</section>
+
+<section class="settings-section" id="view">
+    <span class="eyebrow">MAKE IT YOURS</span><h2>Results and appearance</h2>
+    <label>Default layout<select @bind="WebSettings.ResultsView"><option value="cards">Cards</option><option value="list">List</option><option value="compact">Compact rows</option></select></label>
+    <label>Preview display width<input type="range" min="80" max="480" step="20" @bind="WebSettings.ResultsPreviewWidth" /><small>@WebSettings.ResultsPreviewWidth px</small></label>
+    <label>Groups per page<input type="number" min="5" max="100" value="@WebSettings.ResultsPageSize" @onchange="e => WebSettings.ResultsPageSize = Math.Clamp((int)Number(e.Value), 5, 100)" /></label>
+    <label><input type="checkbox" @bind="WebSettings.ShowTrackLanguages" />Show audio and subtitle languages</label>
+    <label><input type="checkbox" @bind="WebSettings.UseModifiedDate" />Use modified date instead of created date</label>
+    <h3>On this device</h3><p class="section-help">Appearance choices below are saved in this browser.</p>
+    <label>Theme<select aria-label="Theme" @bind="_theme" @bind:after="ApplyAppearance"><option value="system">Follow system</option><option value="dark">Dark</option><option value="light">Light</option></select></label>
+    <label>Text and controls<select aria-label="Text size" @bind="_scale" @bind:after="ApplyAppearance"><option value="100">100%</option><option value="110">110%</option><option value="125">125%</option><option value="150">150%</option></select></label>
+    <label><input type="checkbox" @bind="_reduceMotion" @bind:after="ApplyAppearance" />Reduce motion</label>
+</section>
+
+@code {
+    string _drivePath = string.Empty, _driveType = "SSD", _theme = "system", _scale = "100";
+    bool _reduceMotion;
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (!firstRender) return;
+        try {
+            var appearance = await JS.InvokeAsync<string[]>("vdf.getAppearance");
+            if (appearance?.Length == 3) { _theme = appearance[0]; _scale = appearance[1]; _reduceMotion = appearance[2] == "reduce"; StateHasChanged(); }
+        } catch { }
+    }
+    Task ApplyAppearance() => JS.InvokeVoidAsync("vdf.setAppearance", _theme, _scale, _reduceMotion).AsTask();
+    static float Number(object? value) => float.TryParse(value?.ToString()?.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) && float.IsFinite(n) ? n : 0;
+    void AddDrive() { if (!string.IsNullOrWhiteSpace(_drivePath)) Scan.Settings.DriveTypeOverrides[_drivePath.Trim()] = _driveType; _drivePath = string.Empty; }
+    void SetQualityEnabled(string name, bool enabled) { WebSettings.QualityCriteriaDisabled.Remove(name); if (!enabled) WebSettings.QualityCriteriaDisabled.Add(name); }
+    void MoveQuality(string name, int delta) {
+        int from = WebSettings.QualityCriteriaOrder.IndexOf(name), to = from + delta;
+        if (from < 0 || to < 0 || to >= WebSettings.QualityCriteriaOrder.Count) return;
+        WebSettings.QualityCriteriaOrder.RemoveAt(from); WebSettings.QualityCriteriaOrder.Insert(to, name);
+    }
+}

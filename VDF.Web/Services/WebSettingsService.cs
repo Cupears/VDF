@@ -23,6 +23,17 @@ namespace VDF.Web.Services {
 	public sealed class WebSettingsService {
 		/// <summary>JSON-serializable mirror of the settings relevant to VDF.Web.</summary>
 		public sealed class Dto {
+			public int HddMaxDegreeOfParallelism { get; set; } = 2;
+			public Dictionary<string, string> DriveTypeOverrides { get; set; } = new();
+			public float PHashRequiredMatchingSampleRatio { get; set; } = 0.6f;
+			public bool RememberDeletedContent { get; set; }
+			public List<string> QualityCriteriaOrder { get; set; } = WebReviewRules.DefaultOrder.ToList();
+			public List<string> QualityCriteriaDisabled { get; set; } = new() { "SizeLarger" };
+			public string ResultsView { get; set; } = "list";
+			public int ResultsPreviewWidth { get; set; } = 240;
+			public int ResultsPageSize { get; set; } = 25;
+			public bool ShowTrackLanguages { get; set; } = true;
+			public bool UseModifiedDate { get; set; }
 			public List<string> IncludeList { get; set; } = new();
 			public List<string> BlackList { get; set; } = new();
 			public byte Threshhold { get; set; } = 5;
@@ -89,6 +100,13 @@ namespace VDF.Web.Services {
 		public bool AutoLoadThumbnails { get; set; } = true;
 		public int ThumbnailWidth { get; set; } = 480;
 		public int ThumbnailJpegQuality { get; set; } = 85;
+		public List<string> QualityCriteriaOrder { get; set; } = WebReviewRules.DefaultOrder.ToList();
+		public List<string> QualityCriteriaDisabled { get; set; } = new() { "SizeLarger" };
+		public string ResultsView { get; set; } = "list";
+		public int ResultsPreviewWidth { get; set; } = 240;
+		public int ResultsPageSize { get; set; } = 25;
+		public bool ShowTrackLanguages { get; set; } = true;
+		public bool UseModifiedDate { get; set; }
 
 		/// <summary>Test hook: redirects the settings file away from the user's real one.</summary>
 		internal static string? TestOverrideSettingsPath;
@@ -113,6 +131,17 @@ namespace VDF.Web.Services {
 			try {
 				var dto = JsonSerializer.Deserialize(File.ReadAllText(SettingsPath), WebJsonContext.Default.Dto);
 				if (dto == null) return false;
+				s.HddMaxDegreeOfParallelism = Math.Clamp(dto.HddMaxDegreeOfParallelism, 1, 128);
+				s.DriveTypeOverrides = dto.DriveTypeOverrides ?? new();
+				s.PHashRequiredMatchingSampleRatio = Math.Clamp(dto.PHashRequiredMatchingSampleRatio, 0.01f, 1f);
+				s.RememberDeletedContent = dto.RememberDeletedContent;
+				QualityCriteriaOrder = WebReviewRules.NormalizeOrder(dto.QualityCriteriaOrder);
+				QualityCriteriaDisabled = dto.QualityCriteriaDisabled ?? new() { "SizeLarger" };
+				ResultsView = dto.ResultsView is "list" or "compact" ? dto.ResultsView : "cards";
+				ResultsPreviewWidth = Math.Clamp(dto.ResultsPreviewWidth, 80, 480);
+				ResultsPageSize = Math.Clamp(dto.ResultsPageSize, 5, 100);
+				ShowTrackLanguages = dto.ShowTrackLanguages;
+				UseModifiedDate = dto.UseModifiedDate;
 				foreach (var p in dto.IncludeList) s.IncludeList.Add(p);
 				foreach (var p in dto.BlackList) s.BlackList.Add(p);
 				s.Threshhold = dto.Threshhold;
@@ -179,6 +208,17 @@ namespace VDF.Web.Services {
 			try {
 				Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
 				var dto = new Dto {
+					HddMaxDegreeOfParallelism = s.HddMaxDegreeOfParallelism,
+					DriveTypeOverrides = s.DriveTypeOverrides,
+					PHashRequiredMatchingSampleRatio = s.PHashRequiredMatchingSampleRatio,
+					RememberDeletedContent = s.RememberDeletedContent,
+					QualityCriteriaOrder = QualityCriteriaOrder,
+					QualityCriteriaDisabled = QualityCriteriaDisabled,
+					ResultsView = ResultsView,
+					ResultsPreviewWidth = ResultsPreviewWidth,
+					ResultsPageSize = ResultsPageSize,
+					ShowTrackLanguages = ShowTrackLanguages,
+					UseModifiedDate = UseModifiedDate,
 					IncludeList = s.IncludeList.ToList(),
 					BlackList = s.BlackList.ToList(),
 					Threshhold = s.Threshhold,

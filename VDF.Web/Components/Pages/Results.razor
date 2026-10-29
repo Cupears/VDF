@@ -7,11 +7,15 @@
 
 <PageTitle>Results — Video Duplicate Finder</PageTitle>
 
-<h1>Duplicate Groups</h1>
+<span class="eyebrow">REVIEW YOUR SCAN</span><h1>Duplicate Groups</h1>
+<p class="page-intro">Compare copies, choose what to keep, then review checked files before deleting.</p>
 
 @{
     var allDuplicates = Scan.Duplicates;
     var filteredGroups = GetFilteredGroups();
+    int pageCount = Math.Max(1, (int)Math.Ceiling(filteredGroups.Count / (double)WebSettings.ResultsPageSize));
+    _page = Math.Clamp(_page, 0, pageCount - 1);
+    var pageGroups = filteredGroups.Skip(_page * WebSettings.ResultsPageSize).Take(WebSettings.ResultsPageSize).ToList();
     long totalSize = 0, potentialSavings = 0;
     int totalFiles = 0;
     foreach (var g in filteredGroups) {
@@ -33,8 +37,20 @@
     <p>No duplicates found. <a href="/">Run a scan</a> first.</p>
 }
 else {
+    <div class="review-controls">
+        <div class="view-switch" role="group" aria-label="Results layout">
+            @foreach (var mode in new[] { "cards", "list", "compact" }) {
+                <button class="@(WebSettings.ResultsView == mode ? "active" : "")" aria-pressed="@(WebSettings.ResultsView == mode)" @onclick="() => ChangeView(mode)">@mode</button>
+            }
+        </div>
+        <label>Group order<select aria-label="Group order" @bind="_groupOrder" @bind:after="ResetPage"><option value="default">Default</option><option value="size">Largest total size</option><option value="count">Most copies</option><option value="similarity">Highest similarity</option></select></label>
+        <label class="filter-chip"><input id="filter-ai" type="checkbox" @bind="_onlyAi" @bind:after="ResetPage" />AI matches</label>
+        <label class="filter-chip"><input id="filter-partial" type="checkbox" @bind="_onlyPartial" @bind:after="ResetPage" />Partial clips</label>
+        <label class="filter-chip"><input id="filter-live" type="checkbox" @bind="_hideSingleLive" @bind:after="ResetPage" />Hide groups with one file left</label>
+        <a href="/settings#quality">Quality rules</a>
+    </div>
     <div class="results-toolbar" @onkeydown="OnKeyDown" tabindex="0">
-        <input class="search-box" @bind="_search" @bind:event="oninput"
+        <input class="search-box" @bind="_search" @bind:event="oninput" @bind:after="ResetPage"
                placeholder="Filter by path (* and ? wildcards)..." />
         @if (!string.IsNullOrEmpty(_search)) {
             <button @onclick="() => _search = string.Empty">&#x2715;</button>
@@ -128,9 +144,11 @@ else {
         <div class="@(_operationFailed ? "error-box" : "info-box")">@_operationMsg</div>
     }
 
-    @foreach (var group in filteredGroups) {
+    <div class="pagination" aria-label="Results pages"><button disabled="@(_page == 0)" @onclick="() => _page--">Previous</button><span>Page @(_page + 1) of @pageCount · @WebSettings.ResultsPageSize groups per page</span><button disabled="@(_page + 1 >= pageCount)" @onclick="() => _page++">Next</button></div>
+    @foreach (var group in pageGroups) {
         var groupId = group.Key;
         var sortedItems = SortItems(group.ToList());
+        var bestItem = PickHighestQuality(sortedItems);
         bool allGroupSelected = sortedItems.All(i => _selected.Contains(i));
         bool isCollapsed = _collapsedGroups.Contains(groupId);
         float maxSimilarity = sortedItems.Max(i => i.Similarity);
@@ -164,6 +182,8 @@ else {
                     <button class="compare-btn" @onclick="() => OpenCompare(sortedItems)" title="Compare fullsize">Compare</button>
                     <button class="metadata-btn" @onclick="() => OpenMetadata(sortedItems)" title="Compare every metadata tag of these files">Metadata</button>
                     <button @onclick="() => KeepBest(sortedItems)" title="Select all except best quality">Keep Best</button>
+                    <button class="group-check-all" @onclick="() => ToggleGroup(sortedItems, true)" title="Check every copy, including the best">Check all</button>
+                    <button @onclick="() => OpenWhySimilar(sortedItems)" disabled="@(sortedItems.Count < 2)">Why similar?</button>
                     <button class="collapse-toggle" @onclick="() => ToggleCollapse(groupId)" title="@(isCollapsed ? "Expand" : "Collapse")">
                         @(isCollapsed ? "\u25B6" : "\u25BC")
                     </button>
@@ -171,11 +191,11 @@ else {
             </div>
 
             @if (!isCollapsed) {
-                <div class="dup-cards">
+                <div class="dup-cards review-@WebSettings.ResultsView" style="--preview-width:@(WebSettings.ResultsPreviewWidth)px">
                     @foreach (var item in sortedItems) {
                         if (_hiddenItems.Contains(item.Path)) continue;
                         bool sel = _selected.Contains(item);
-                        bool isBest = item.IsBestBitRateKbs || item.IsBestFrameSize;
+                        bool isBest = ReferenceEquals(item, bestItem);
 
                         <div class="dup-card @(isBest ? "best" : "") @(sel ? "selected" : "")"
                              @key="item.Path"
@@ -210,6 +230,7 @@ else {
                             <div class="card-body">
                                 <div class="card-filename" title="@item.Path">@System.IO.Path.GetFileName(item.Path)</div>
                                 <div class="card-path" title="@item.Path">@System.IO.Path.GetDirectoryName(item.Path)</div>
+                                <div class="file-date">@(WebSettings.UseModifiedDate ? "Modified" : "Created"): @(FileDate(item) == default ? "Unknown" : FileDate(item).ToString("yyyy-MM-dd HH:mm"))</div>
 
                                 <div class="card-meta">
                                     @if (!item.IsImage) {
@@ -261,13 +282,13 @@ else {
                                             <span class="meta-label">Format</span>
                                             <span class="meta-value">@(item.Format ?? "?")</span>
                                         </div>
-                                        @if (item.AudioLanguages.Length > 0) {
+                                        @if (WebSettings.ShowTrackLanguages && item.AudioLanguages.Length > 0) {
                                             <div class="meta-row">
                                                 <span class="meta-label">Audio</span>
                                                 <span class="meta-value">@item.AudioLanguages</span>
                                             </div>
                                         }
-                                        @if (item.SubtitleLanguages.Length > 0) {
+                                        @if (WebSettings.ShowTrackLanguages && item.SubtitleLanguages.Length > 0) {
                                             <div class="meta-row">
                                                 <span class="meta-label">Subs</span>
                                                 <span class="meta-value">@item.SubtitleLanguages</span>
@@ -299,7 +320,7 @@ else {
 
                                 <div class="card-badges">
                                     @if (isBest) {
-                                        <span class="badge-best">Best quality</span>
+                                        <span class="badge-best" title="Chosen using your quality rules">BEST</span>
                                     }
                                     @if (item.Flags.HasFlag(VDF.Core.DuplicateFlags.PartialClip)) {
                                         <span class="badge-partial-clip">partial clip @item.PartialClipOffsetDisplay</span>
@@ -345,6 +366,7 @@ else {
         <div class="compare-mode-tabs">
             <button class="@(_compareMode == CompareMode.SideBySide ? "active" : "")" @onclick="() => SetCompareMode(CompareMode.SideBySide)">Side by Side</button>
             <button class="@(_compareMode == CompareMode.Swipe ? "active" : "")" @onclick="() => SetCompareMode(CompareMode.Swipe)">Swipe</button>
+            <button class="@(_compareMode == CompareMode.Stacked ? "active" : "")" @onclick="() => SetCompareMode(CompareMode.Stacked)">Stacked</button>
             @if (frameCount > 1) {
                 @* The frames the scan sampled; a partial clip is lined up with its place in the source. *@
                 <div class="compare-frames">
@@ -371,8 +393,8 @@ else {
             }
         </div>
         <div class="compare-body">
-            @if (_compareMode == CompareMode.SideBySide) {
-                <div class="compare-side-by-side">
+            @if (_compareMode != CompareMode.Swipe) {
+                <div class="compare-side-by-side @(_compareMode == CompareMode.Stacked ? "stacked" : "")">
                     <div class="compare-pane">
                         <div class="compare-pane-img">
                             <img src="@FullFrameUrl(itemA, frames.A)" alt="A" />
@@ -408,6 +430,13 @@ else {
                     <span class="compare-swipe-label label-b">B@(itemB.IsImage ? "" : " " + FormatPosition(frames.B))</span>
                 </div>
             }
+        </div>
+        <div class="compare-actions">
+            <button @onclick="() => KeepCompareSide(true)" disabled="@(_compareA == _compareB)">Keep A, check B</button>
+            <button @onclick="() => KeepCompareSide(false)" disabled="@(_compareA == _compareB)">Keep B, check A</button>
+            <button @onclick="CheckCompareAndNext">Check group + next (S)</button>
+            <button @onclick="NextCompareGroup">Next group</button>
+            <span>@_selected.Count checked · no files are deleted here</span>
         </div>
     </div>
 }
@@ -514,7 +543,27 @@ else {
     </div>
 }
 
+@if (_whyReport != null) {
+    <div class="compare-overlay active why-overlay" role="dialog" aria-modal="true" aria-labelledby="why-title">
+        <div class="why-dialog"><div class="page-heading"><h2 id="why-title">Why similar?</h2><button @onclick="() => _whyReport = null">Close</button></div>
+            <p>Checks the first two files in this group with the current scan settings.</p><pre>@_whyReport</pre></div>
+    </div>
+}
+
 @code {
+    int _page;
+    bool _onlyAi, _onlyPartial, _hideSingleLive;
+    string _groupOrder = "default";
+    string? _whyReport;
+    void ResetPage() => _page = 0;
+    void ChangeView(string view) { WebSettings.ResultsView = view; Scan.SaveSettings(); }
+    DateTime FileDate(DuplicateItem item) => WebSettings.UseModifiedDate ? item.DateModified : item.DateCreated;
+    async Task OpenWhySimilar(List<DuplicateItem> items) {
+        if (items.Count < 2) return;
+        _whyReport = "Checking these files…";
+        try { _whyReport = await Scan.TestFilePairAsync(items[0].Path, items[1].Path); }
+        catch (Exception ex) { _whyReport = "The check failed: " + ex.Message; }
+    }
     string _search = string.Empty;
     readonly HashSet<DuplicateItem> _selected = new();
     bool _confirmDelete;
@@ -553,7 +602,7 @@ else {
     ElementReference _compareOverlay;
     bool _focusCompare;
 
-    enum CompareMode { SideBySide, Swipe }
+    enum CompareMode { SideBySide, Swipe, Stacked }
 
     // Metric name constants (avoid escaped quotes in Razor attributes)
     const string MetricResolution = "resolution";
@@ -764,6 +813,9 @@ else {
 
     void OnCompareKeyDown(KeyboardEventArgs e) {
         switch (e.Key) {
+            case "a": case "A": KeepCompareSide(true); break;
+            case "d": case "D": KeepCompareSide(false); break;
+            case "s": case "S": CheckCompareAndNext(); break;
             case "ArrowLeft": StepCompareFrame(-1); break;
             case "ArrowRight": StepCompareFrame(1); break;
             case "Escape": CloseCompare(); break;
@@ -789,6 +841,25 @@ else {
     }
 
     void CloseCompare() => _compareVisible = false;
+    void KeepCompareSide(bool keepA) {
+        if (_compareItems == null || _compareA == _compareB) return;
+        _selected.Remove(_compareItems[keepA ? _compareA : _compareB]);
+        _selected.Add(_compareItems[keepA ? _compareB : _compareA]);
+    }
+    void CheckCompareAndNext() {
+        if (_compareItems == null) return;
+        ToggleGroup(_compareItems, true);
+        NextCompareGroup();
+    }
+    void NextCompareGroup() {
+        if (_compareItems == null) return;
+        var groups = GetFilteredGroups();
+        int index = groups.FindIndex(g => g.Key == _compareItems[0].GroupId);
+        if (index >= 0 && index + 1 < groups.Count) {
+            _page = (index + 1) / WebSettings.ResultsPageSize;
+            OpenCompare(SortItems(groups[index + 1].ToList()));
+        } else { CloseCompare(); ShowMsg("Last group reached. Review your checked files before deleting.", false); }
+    }
 
     // === Metadata comparison (#926): read when opened, never stored ===
     List<DuplicateItem>? _metadataItems;
@@ -866,6 +937,7 @@ else {
     void KeepBest(List<DuplicateItem> items) {
         if (items.Count < 2) return;
         var keeper = PickHighestQuality(items);
+        _selected.Remove(keeper);
         foreach (var item in items)
             if (item.Path != keeper.Path)
                 _selected.Add(item);
@@ -891,7 +963,7 @@ else {
             "duration" => items.OrderByDescending(i => i.Duration).ToList(),
             "bitrate" => items.OrderByDescending(i => i.BitRateKbs).ToList(),
             "resolution" => items.OrderByDescending(i => i.FrameSizeInt).ToList(),
-            "date" => items.OrderByDescending(i => i.DateCreated).ToList(),
+            "date" => items.OrderByDescending(FileDate).ToList(),
             "name" => items.OrderBy(i => System.IO.Path.GetFileName(i.Path)).ToList(),
             _ => items.OrderByDescending(i => i.Similarity).ToList()
         };
@@ -952,12 +1024,20 @@ else {
     static string SimilarityClass(float sim) => sim >= 99f ? "high" : sim >= 90f ? "medium" : "low";
 
     // === Filtering ===
-    List<IGrouping<Guid, DuplicateItem>> GetFilteredGroups() =>
-        Scan.Duplicates
+    List<IGrouping<Guid, DuplicateItem>> GetFilteredGroups() {
+        var groups = Scan.Duplicates
             .GroupBy(d => d.GroupId)
             .Where(g => string.IsNullOrEmpty(_search) || g.Any(i => PathMatchesFilter(i.Path, _search)))
-            .OrderBy(g => g.Key)
-            .ToList();
+            .Where(g => !_onlyAi || g.Any(i => i.IsAiMatched))
+            .Where(g => !_onlyPartial || g.Any(i => i.Flags.HasFlag(VDF.Core.DuplicateFlags.PartialClip)))
+            .Where(g => !_hideSingleLive || g.Count(i => File.Exists(i.Path)) > 1);
+        return (_groupOrder switch {
+            "size" => groups.OrderByDescending(g => g.Sum(i => Math.Max(0, i.SizeLong))),
+            "count" => groups.OrderByDescending(g => g.Count()),
+            "similarity" => groups.OrderByDescending(g => g.Max(i => i.Similarity)),
+            _ => groups.OrderBy(g => g.Key)
+        }).ToList();
+    }
 
     // Substring match by default; * and ? switch to wildcard matching (same rules as the GUI filter).
     // Backslashes are escaped because MatchesSimpleExpression treats '\' in the pattern as an
@@ -987,7 +1067,7 @@ else {
     // === QoL: Keyboard Navigation ===
     async Task OnKeyDown(KeyboardEventArgs e) {
         // Same group list the page renders, so j/k/x/1-9 act on what the user sees.
-        var groups = GetFilteredGroups();
+        var groups = GetFilteredGroups().Skip(_page * WebSettings.ResultsPageSize).Take(WebSettings.ResultsPageSize).ToList();
         if (groups.Count == 0) return;
 
         switch (e.Key) {
@@ -1023,7 +1103,7 @@ else {
     // === Auto-select ===
     void AutoSelect(AutoSelectMode mode) {
         _autoSelectOpen = false;
-        var all = Scan.Duplicates;
+        var all = GetFilteredGroups().SelectMany(g => g).ToList();
         var processed = new HashSet<Guid>();
 
         if (mode == AutoSelectMode.HundredPercentEqual) {
@@ -1045,11 +1125,11 @@ else {
             DuplicateItem keeper = mode switch {
                 AutoSelectMode.LowestQuality => PickHighestQuality(groupItems),
                 AutoSelectMode.SmallestFile  => groupItems.OrderByDescending(d => d.SizeLong).First(),
-                AutoSelectMode.Oldest        => groupItems.OrderByDescending(d => d.DateCreated).First(),
-                AutoSelectMode.Newest        => groupItems.OrderBy(d => d.DateCreated).First(),
+                AutoSelectMode.Oldest        => groupItems.OrderByDescending(FileDate).First(),
+                AutoSelectMode.Newest        => groupItems.OrderBy(FileDate).First(),
                 _                            => groupItems[0]
             };
-
+            _selected.Remove(keeper);
             foreach (var item in groupItems)
                 if (item.Path != keeper.Path)
                     _selected.Add(item);
@@ -1058,17 +1138,7 @@ else {
         }
     }
 
-    static readonly VDF.Core.Utils.QualityRanker.Criterion<DuplicateItem>[] WebCriteria = {
-        new("Duration",      d => d.Duration,        videoOnly: true),
-        new("Resolution",    d => d.FrameSizeInt,    videoOnly: false),
-        new("Bitrate",       d => d.BitRateKbs,      videoOnly: true),
-        new("FPS",           d => d.Fps,             videoOnly: true),
-        new("Audio Bitrate", d => d.AudioSampleRate, videoOnly: true),
-        new("Size",          d => d.SizeLong,        videoOnly: false, ascending: true),
-    };
-
-    static DuplicateItem PickHighestQuality(List<DuplicateItem> items) =>
-        VDF.Core.Utils.QualityRanker.PickKeeper(items, WebCriteria, d => d.IsImage);
+    DuplicateItem PickHighestQuality(List<DuplicateItem> items) => WebReviewRules.PickKeeper(items, WebSettings);
 
     static string FormatSize(long bytes) {
         if (bytes < 0) return "?";

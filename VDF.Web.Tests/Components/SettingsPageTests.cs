@@ -49,6 +49,20 @@ public sealed class SettingsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Settings>();
 
 	[Theory]
+	[InlineData("-5", 1)]
+	[InlineData("999", 128)]
+	[InlineData("4", 4)]
+	public void SlowDiskLimit_ClampsAndPersists(string typed, int expected) {
+		var page = RenderPage();
+		page.Find("input[aria-label='Slow disk read limit']").Change(typed);
+		Assert.Equal(expected, scan.Settings.HddMaxDegreeOfParallelism);
+		page.Find("button.primary").Click();
+		var loaded = new VDF.Core.Settings();
+		Assert.True(new WebSettingsService().Load(loaded));
+		Assert.Equal(expected, loaded.HddMaxDegreeOfParallelism);
+	}
+
+	[Theory]
 	[InlineData("120", 100f)] // above range
 	[InlineData("30", 50f)] // below range
 	[InlineData("95.5", 95.5f)] // in range, dot decimal

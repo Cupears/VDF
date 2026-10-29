@@ -2,20 +2,31 @@
 @rendermode InteractiveServer
 @inject VDF.Web.Services.ScanService Scan
 @inject VDF.Web.Services.WebSettingsService WebSettings
+@inject IJSRuntime JS
 @using System.Globalization
 
 <PageTitle>Settings — Video Duplicate Finder</PageTitle>
 
 <h1>Settings</h1>
+<p class="page-intro">Choose how files are compared, ranked, and shown. These settings belong to the web session.</p>
+<nav class="settings-nav" aria-label="Settings sections">
+    <a href="#desktop-settings">Performance</a><a href="#quality">Quality rules</a><a href="#view">Results view</a><a href="#matching">Matching</a><a href="#scanning">Scanning</a>
+    <a href="#filters">File filters</a><a href="#ffmpeg">FFmpeg</a><a href="#clips">Partial clips</a>
+    <a href="#thumbnails">Previews</a><a href="#database">Database</a><a href="#diagnostics">Diagnostics</a><a href="#test">Test files</a>
+</nav>
+<label class="settings-search">Find a setting<input type="search" placeholder="Try disk limits, pHash, or deleted content…" @oninput="SearchSettings" /></label>
 
-<div class="start-row" style="margin-bottom:1rem;margin-top:0;">
+<div class="start-row settings-save" style="margin-bottom:1rem;margin-top:0;">
     <button class="primary" @onclick="SaveSettings">Save Settings</button>
     @if (_saveMsg != null) {
         <span class="@(_saveFailed ? "aborted-msg" : "done-msg")" style="margin:0;">@_saveMsg</span>
     }
 </div>
 
-<section class="settings-section">
+<fieldset class="settings-fields" disabled="@(Scan.State is ScanState.Scanning or ScanState.Comparing)">
+@if (Scan.State is ScanState.Scanning or ScanState.Comparing) { <p role="status">Stop the running scan before changing its settings.</p> }
+<VDF.Web.Components.DesktopSettings />
+<section class="settings-section" id="matching">
     <h2>Similarity</h2>
     <label>
         Threshold (hash difference, 0–10, lower = stricter)
@@ -65,7 +76,7 @@
     }
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="scanning">
     <h2>Scanning</h2>
     <label>
         <input type="checkbox"
@@ -89,7 +100,7 @@
         <input type="checkbox"
                checked="@Scan.Settings.CombineGrayscaleAndPHash"
                @onchange="e => Scan.Settings.CombineGrayscaleAndPHash = (bool)e.Value!" />
-        Combined matching (grayscale AND pHash in one pass; badges name the algorithm that found each group)
+        Combined matching (run grayscale and pHash together; either method can find a match)
     </label>
     <label>
         <input type="checkbox"
@@ -181,13 +192,13 @@
     </label>
     <label>
         Frames sampled per video (compared for matching, spread evenly over the timeline; the compare window steps through them)
-        <input type="number" min="1" max="20"
+        <input type="number" min="1" max="100"
                value="@Scan.Settings.ThumbnailCount"
-               @onchange="e => Scan.Settings.ThumbnailCount = ParseInt(e.Value)" />
+               @onchange="e => Scan.Settings.ThumbnailCount = Math.Clamp(ParseInt(e.Value), 1, 100)" />
     </label>
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="filters">
     <h2>File Filters</h2>
     <label>
         <input type="checkbox"
@@ -239,7 +250,7 @@
     }
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="ffmpeg">
     <h2>FFmpeg</h2>
     <label>
         <input type="checkbox"
@@ -263,7 +274,7 @@
     </label>
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="clips">
     <h2>Partial Clip Detection</h2>
     <label>
         <input type="checkbox"
@@ -301,7 +312,7 @@
     }
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="thumbnails">
     <h2>WebUI Thumbnails</h2>
     <label>
         <input type="checkbox"
@@ -323,7 +334,7 @@
     </label>
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="database">
     <h2>Database</h2>
     <label>
         <input type="checkbox"
@@ -367,7 +378,7 @@
     }
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="diagnostics">
     <h2>Diagnostics</h2>
     <label>
         <input type="checkbox"
@@ -383,7 +394,7 @@
     </label>
 </section>
 
-<section class="settings-section">
+<section class="settings-section" id="test">
     <h2>Test Two Files</h2>
     <p style="margin-top:0;">
         Enter the full paths of two files you believe are duplicates and run the test.
@@ -410,7 +421,9 @@
     }
 </section>
 
+</fieldset>
 @code {
+    Task SearchSettings(ChangeEventArgs e) => JS.InvokeVoidAsync("vdf.filterSettings", e.Value?.ToString() ?? "").AsTask();
     string? _saveMsg;
     bool _saveFailed;
     bool _dbBusy;
