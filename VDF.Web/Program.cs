@@ -145,4 +145,9 @@ app.MapRazorComponents<VDF.Web.Components.App>()
 var ffmpegSetup = app.Services.GetRequiredService<FFmpegSetupService>();
 _ = ffmpegSetup.CheckAndSetupAsync();
 
+// Load the configured library before accepting clients so both screens show
+// the saved entry count immediately, without needing to start a scan.
+if (!await ScanEngine.LoadDatabase(scanService.Settings.CustomDatabaseFolder))
+	throw new InvalidOperationException("The saved scan database could not be loaded. Check the VDF log before scanning.");
+
 app.Run();

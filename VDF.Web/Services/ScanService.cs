@@ -433,7 +433,7 @@ namespace VDF.Web.Services {
 
 		/// <summary>Removes database entries for files that no longer exist or have errors.</summary>
 		public async Task<int> CleanDatabaseAsync() {
-			await ScanEngine.LoadDatabase();
+			await ScanEngine.LoadDatabase(Settings.CustomDatabaseFolder);
 			int before = DatabaseEntryCount;
 			await Task.Run(() => _engine.CleanupDatabase());
 			return before - DatabaseEntryCount;
@@ -441,7 +441,7 @@ namespace VDF.Web.Services {
 
 		/// <summary>Wipes all entries from the scan database.</summary>
 		public async Task ClearDatabaseAsync() {
-			await ScanEngine.LoadDatabase();
+			await ScanEngine.LoadDatabase(Settings.CustomDatabaseFolder);
 			ScanEngine.ClearDatabase();
 			_engine.Duplicates.Clear();
 			SelectedItems.Clear();

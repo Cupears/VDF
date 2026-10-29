@@ -11,9 +11,12 @@ the one VDF.Web server, one scan engine, and its database. Progress, results, an
 checked files are shared. Starting either shortcut reuses the running server.
 Use scripts/Start-Desktop.ps1 (or VDF - Cupears Fork) for desktop access.
 Use VDF Mobile and the Tailscale phone address for phone access.
-The old native GUI and its database are preserved separately. That older cache has
-not been merged into the shared web database. Opening VDF.GUI.exe directly starts
-the old standalone interface, so use the desktop shortcut for the shared session.
+This PC's shared server uses the existing desktop database in
+VDF.GUI/bin/Debug/net10.0 through the local CustomDatabaseFolder setting.
+The saved library and its AI cache files stay in that folder. No fresh scan is needed.
+The smaller earlier mobile database is backed up in Documents/VDF Backups.
+Use the desktop shortcut for the shared session; do not open VDF.GUI.exe directly
+while the shared server is running, because it would also write to this database.
 Browser appearance and list filters can differ between devices; checked files are shared.
 Delete confirmation holds a fixed list so checks changed on another device do not
 silently add files to an already-open delete confirmation.
