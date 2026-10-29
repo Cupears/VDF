@@ -60,13 +60,16 @@
     <div class="progress-section">
         <span class="eyebrow">SCAN IN PROGRESS</span><h2>@(Scan.State == ScanState.Comparing ? "Finding matches" : "Reading and sampling files")</h2>
         @if (Scan.LastProgress is { } p) {
-            var eta = ScanEtaDisplay.From(new VDF.Core.ScanProgressSnapshot(p.CurrentFile, p.Current, p.Max, p.Elapsed, p.Remaining, p.CurrentStage, p.StageCurrent, p.StageMax, null), Scan.IsPaused, DateTimeOffset.Now);
+            var overallProgress = new VDF.Core.ScanProgressSnapshot(p.CurrentFile, p.Current, p.Max, p.Elapsed, p.Remaining, p.CurrentStage, p.StageCurrent, p.StageMax, null) { CountsSavedCache = p.CountsSavedCache };
+            var overallEta = ScanEtaDisplay.From(overallProgress, Scan.IsPaused, DateTimeOffset.Now);
+            var eta = p.Folder is { } folder ? ScanEtaDisplay.From(overallProgress with { CurrentPosition = folder.Done, MaxPosition = folder.Total, Elapsed = folder.Elapsed, Remaining = folder.Remaining }, Scan.IsPaused, DateTimeOffset.Now) : overallEta;
             <p class="state-label">@p.CurrentStage</p>
             <section class="eta-card" aria-label="Current step time estimate">
-                <p class="eta-status">@eta.Status</p>
+                <p class="eta-status">ACTIVE FOLDER / TASK</p>
+                <p class="eta-folder">@(p.Folder?.Path ?? p.CurrentStage)</p>
                 <div class="eta-hero">
                     <strong class="eta-time">@eta.Remaining</strong>
-                    <div class="eta-finish"><small>ESTIMATED STEP FINISH · PC TIME</small><strong>@eta.Finish</strong></div>
+                    <div class="eta-finish"><small>FOLDER FINISH · PC TIME</small><strong>@eta.Finish</strong></div>
                 </div>
                 @if (eta.UnknownTotal) { <div class="eta-unknown-track" aria-label="Still finding the total"></div> }
                 else {
@@ -74,11 +77,15 @@
                         <div class="progress-bar-fill" style="width:@(eta.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
                     </div>
                 }
-                <div class="eta-stats scan-stat-grid"><div><small>Items / files found</small><strong>@eta.Count</strong></div><div><small>Elapsed scan time</small><strong>@eta.Elapsed</strong></div><div><small>Current step</small><strong>@eta.Percent</strong></div></div>
-                <p class="eta-note">@eta.Note</p>
+                <div class="eta-stats scan-stat-grid"><div><small>Folder files</small><strong>@eta.Count</strong></div><div><small>Folder time</small><strong>@eta.Elapsed</strong></div><div><small>Folder progress</small><strong>@eta.Percent</strong></div></div>
             </section>
             <p class="file-path" title="@p.CurrentFile">@p.CurrentFile</p>
             @if (p.StageMax > 0) { <p class="stage-label">Current task: @p.StageCurrent / @p.StageMax</p> }
+            <section class="eta-overall" aria-label="Overall selected scan progress">
+                <strong>Overall selected scan · current step</strong>
+                <p>@overallEta.Count · @overallEta.Percent · @overallEta.Remaining</p>
+                <small>Elapsed scan time: @overallEta.Elapsed. @overallEta.Note</small>
+            </section>
         }
         else {
             <p class="state-label">

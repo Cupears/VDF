@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using VDF.Core;
 using VDF.Core.Utils;
 using VDF.Web.Services;
 
@@ -45,6 +46,23 @@ public sealed class ScanSetupTests : BunitContext {
         Assert.Contains("123", page.Find(".scan-stat-grid").TextContent);
         Assert.Contains("still counting", page.Markup);
         Assert.NotNull(page.Find("a[href='/log']"));
+    }
+
+    [Fact]
+    public void FolderCardShowsTheActiveFolder_AndOverallTotalsStayBelowIt() {
+        typeof(ScanService).GetProperty(nameof(ScanService.State))!.SetValue(scan, ScanState.Scanning);
+        typeof(ScanService).GetProperty(nameof(ScanService.LastProgress))!.SetValue(scan, new ScanProgressArgs {
+            Current = 700, Max = 2000, Remaining = TimeSpan.FromMinutes(22), CurrentStage = "Reading selected folders",
+            Folder = new FolderProgress(@"J:\Photos", 375, 1000, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(12))
+        });
+        var page = Render<VDF.Web.Components.Pages.Index>();
+        Assert.Equal(@"J:\Photos", page.Find(".eta-folder").TextContent);
+        Assert.Contains("12m 0s", page.Find(".eta-time").TextContent);
+        Assert.Contains("37.5%", page.Find(".eta-card").TextContent);
+        var overall = page.Find(".eta-overall").TextContent;
+        Assert.Contains("Overall selected scan", overall);
+        Assert.Contains("35.0%", overall);
+        Assert.Contains("22m 0s", overall);
     }
 
     [Fact]

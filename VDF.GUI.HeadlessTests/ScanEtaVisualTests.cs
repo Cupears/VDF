@@ -14,15 +14,17 @@ public sealed class ScanEtaVisualTests {
     public Task EtaCardShowsTimePercentAndPausedStateInASmallWindow() => HeadlessUi.Run(async () => {
         var vm = new MainWindowVM { IsScanning = true };
         var progress = (ScanProgress)typeof(ScanEngine).GetField("progress", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(vm.Scanner)!;
-        progress.Update(p => p with { CurrentPosition = 375, MaxPosition = 1000, Remaining = TimeSpan.FromMinutes(12), Elapsed = TimeSpan.FromMinutes(4), CurrentStage = "Reading photos from HDD" }, true);
+        progress.Update(p => p with { CurrentPosition = 700, MaxPosition = 2000, Remaining = TimeSpan.FromMinutes(22), Elapsed = TimeSpan.FromMinutes(4), CurrentStage = "Reading photos from HDD", Folder = new FolderProgress(@"J:\Photos", 375, 1000, TimeSpan.FromMinutes(4), TimeSpan.FromMinutes(12)) }, true);
         var window = HeadlessUi.Show(new ScanningView { DataContext = vm }, 740, 650);
         try {
             HeadlessUi.Pump();
             await Task.Delay(200); HeadlessUi.Pump();
             Assert.Equal(37.5, window.GetVisualDescendants().OfType<ProgressBar>().First().Value);
+            Assert.Equal(35, window.GetVisualDescendants().OfType<ProgressBar>().Last().Value);
             var text = window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToArray();
             Assert.Contains("~ 12m 0s", text);
             Assert.Contains("37.5%", text);
+            Assert.Contains(@"J:\Photos", text);
             Assert.Contains(window.GetVisualDescendants().OfType<ScrollViewer>(), s => s.IsVisible);
             string? preview = Environment.GetEnvironmentVariable("VDF_ETA_PREVIEW_DIR");
             if (!string.IsNullOrEmpty(preview)) {

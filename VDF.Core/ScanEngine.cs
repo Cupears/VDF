@@ -125,6 +125,16 @@ namespace VDF.Core {
 		// Per-drive done/total accounting; non-null only while GatherInfos runs, so progress
 		// events of every other phase carry Drives = null and the UI hides the drive rows.
 		DriveProgressTracker? driveProgressTracker;
+		FolderProgressTracker? folderProgressTracker;
+		string? preparingFolder;
+		TimeSpan preparingFolderStarted;
+		bool countsSavedCache;
+		FolderProgress? CurrentFolderProgress(string path) {
+			if (folderProgressTracker != null) return folderProgressTracker.Snapshot(path, ElapsedTimer.Elapsed);
+			if (preparingFolder == null) return null;
+			var elapsed = ElapsedTimer.Elapsed - preparingFolderStarted;
+			return new(preparingFolder, processedFiles, scanProgressMaxValue, elapsed, EstimateRemainingCompleted(elapsed, processedFiles, scanProgressMaxValue));
+		}
 		// True between StartSearch beginning a log session and the chained StartCompare
 		// joining it; lets a standalone StartCompare open its own session instead.
 		bool compareIsChainedToSearch;
@@ -132,13 +142,16 @@ namespace VDF.Core {
 		string T(string key, params object[] args) =>
 			LanguageService.Instance.Get(Settings.LanguageCode, key, args);
 
-		internal void InitProgress(int count, string stage) {
+		internal void InitProgress(int count, string stage, bool savedCache = false) {
+			countsSavedCache = savedCache;
+			preparingFolder = null;
 			Logger.Instance.Info($"Stage started: {stage}; " + (count > 0 ? $"{count:N0} items." : "total not known yet."));
 			startTime = DateTime.UtcNow;
 			scanProgressMaxValue = count;
 			processedFiles = 0;
 			lastCheckpointTime = DateTime.UtcNow;
 			driveProgressTracker = null; // compare phases re-init progress; they have no per-drive data
+			folderProgressTracker = null;
 			// Publish the new phase's zeroed counters at once. A phase whose first item takes minutes
 			// (the visual gate decodes frames off disk) would otherwise leave the previous phase's
 			// finished-looking numbers on screen, and leave the heartbeat with nothing to refresh.
@@ -150,6 +163,7 @@ namespace VDF.Core {
 				Elapsed = ElapsedTimer.Elapsed,
 				MaxPosition = count,
 				CurrentStage = stage,
+				CountsSavedCache = countsSavedCache,
 			});
 		}
 		void ResetExcludedLogging() {
@@ -230,6 +244,18 @@ namespace VDF.Core {
 			return TimeSpan.FromTicks(phaseElapsed.Ticks * remaining / (processed + 1));
 		}
 
+		/// <summary>
+		/// Remaining time when <paramref name="done"/> items are finished, as opposed to
+		/// <see cref="EstimateRemaining(TimeSpan, int, int)"/>, whose position is the item
+		/// currently being worked on. A finished item already has a measured cost, so the
+		/// last one being done does not mean the phase is done.
+		/// </summary>
+		internal static TimeSpan EstimateRemainingCompleted(TimeSpan elapsed, int done, int total) {
+			if (done <= 0 || total <= done || elapsed <= TimeSpan.Zero)
+				return TimeSpan.Zero;
+			return TimeSpan.FromTicks(elapsed.Ticks * (total - done) / done);
+		}
+
 		TimeSpan EstimateRemaining(int processed, int maxPosition) =>
 			EstimateRemaining(DateTime.UtcNow.Subtract(startTime), processed, maxPosition);
 
@@ -263,6 +289,7 @@ namespace VDF.Core {
 			progress.Heartbeat(p => p with {
 				Elapsed = ElapsedTimer.Elapsed,
 				Remaining = EstimateRemaining(p.CurrentPosition, p.MaxPosition),
+				Folder = CurrentFolderProgress(p.CurrentFile),
 			});
 		}
 
@@ -280,6 +307,8 @@ namespace VDF.Core {
 				StageCurrent = stageCurrent,
 				StageMax = stageMax,
 				Drives = driveProgressTracker?.Snapshot(),
+				Folder = CurrentFolderProgress(path),
+				CountsSavedCache = countsSavedCache,
 			}, ignoreInterval, keepLatestWhenThrottled: scanProgressMaxValue == 0 || keepLatestWhenThrottled);
 
 			if (allowCheckpoint) TryDatabaseCheckpoint();
@@ -698,7 +727,7 @@ namespace VDF.Core {
 
 		Task BuildFileList(CancellationToken cancellationToken) => Task.Run(() => {
 
-			InitProgress(0, "Loading saved scan database");
+			InitProgress(0, "Loading saved scan database", savedCache: true);
 			DatabaseUtils.LoadDatabase();
 			QuarantineCrashSuspects();
 			if (DatabaseUtils.DbVersion < 2) {
@@ -709,7 +738,7 @@ namespace VDF.Core {
 			}
 
 			int oldFileCount = DatabaseUtils.Database.Count;
-			InitProgress(oldFileCount, "Indexing saved file fingerprints");
+			InitProgress(oldFileCount, "Indexing saved file fingerprints", savedCache: true);
 			Logger.Instance.Info($"Indexing {oldFileCount:N0} saved entries before listing folders.");
 
 			// Index existing analysed entries by size and fingerprint so a path-miss can be checked for a
@@ -728,6 +757,7 @@ namespace VDF.Core {
 
 				foreach (string path in Settings.IncludeList) {
 					InitProgress(0, "Listing folders and finding media files");
+					preparingFolder = path; preparingFolderStarted = ElapsedTimer.Elapsed;
 					Logger.Instance.Info($"Listing scan folder: {path} (subfolders: {Settings.IncludeSubDirectories}, images: {Settings.IncludeImages}).");
 					if (cancellationToken.IsCancellationRequested)
 						return;
@@ -747,6 +777,7 @@ namespace VDF.Core {
 					Logger.Instance.Info($"Folder listing {(cancellationToken.IsCancellationRequested ? "stopped" : "finished")}: {path}; {discovered.Count:N0} media files found.");
 					if (cancellationToken.IsCancellationRequested) return;
 					InitProgress(discovered.Count, "Checking discovered files against saved database");
+					preparingFolder = path; preparingFolderStarted = ElapsedTimer.Elapsed;
 					foreach (FileInfo file in discovered) {
 						if (cancellationToken.IsCancellationRequested)
 							return;
@@ -1023,15 +1054,28 @@ namespace VDF.Core {
 			});
 		}
 
+		internal List<FileEntry> SelectAnalysisEntries(IEnumerable<FileEntry> entries) {
+			var selected = new List<FileEntry>();
+			foreach (var entry in entries) {
+				if ((Settings.ScanAgainstEntireDatabase || IsInIncludeScope(entry)) &&
+					(Settings.IncludeImages || !entry.IsImage) && !Settings.BlackList.Any(f => IsBlackListed(entry.Folder, f))) selected.Add(entry);
+				else entry.invalid = true; // Cached history outside this scan must not leak into comparison.
+			}
+			return selected;
+		}
+
 		async Task GatherInfos() {
 			try {
 				// per-file analysis reports its own sub-stages
-				InitProgress(DatabaseUtils.Database.Count, "");
+				var selected = SelectAnalysisEntries(DatabaseUtils.Database);
+				InitProgress(selected.Count, "Reading selected folders");
+				folderProgressTracker = new FolderProgressTracker(selected, Settings.IncludeList);
 				// Only in-scope entries count toward a drive's done/total — out-of-scope ones
 				// are skipped in microseconds and would otherwise dilute the drive bars.
 				bool CountsTowardDriveProgress(FileEntry entry) =>
 					Settings.ScanAgainstEntireDatabase || IsInIncludeScope(entry);
 				void CompleteEntry(FileEntry entry, DriveProgressTracker.Counter driveCounter) {
+					folderProgressTracker?.Complete(entry);
 					if (CountsTowardDriveProgress(entry))
 						driveCounter.Complete(entry.FileSize);
 					IncrementProgress(entry.Path);
@@ -1041,6 +1085,8 @@ namespace VDF.Core {
 						return ValueTask.CompletedTask; // canceled while paused — the loop token ends the iteration
 
 					try {
+						folderProgressTracker?.Begin(entry, ElapsedTimer.Elapsed);
+						ReportProgress(entry.Path, "Reading selected folders", allowCheckpoint: false, keepLatestWhenThrottled: true);
 						entry.invalid = InvalidEntry(entry, out bool reportProgress, out string? invalidReason);
 						if (entry.invalid && invalidReason != null)
 							LogExcludedFile(entry, invalidReason);
@@ -1226,7 +1272,7 @@ namespace VDF.Core {
 				// matched to its storage, all drives concurrently, so a fast drive is never
 				// held back by a slow one. Probe candidates are restricted to files this scan
 				// may read anyway — classification must not spin up out-of-scope drives.
-				List<DriveScanGroup> driveGroups = DriveScanPlanner.PartitionByDrive(DatabaseUtils.Database);
+				List<DriveScanGroup> driveGroups = DriveScanPlanner.PartitionByDrive(selected);
 				if (Settings.MaxDegreeOfParallelism == 1) {
 					// Documented promise: 1 = strictly one file at a time. Drives run
 					// sequentially, no probing needed (speed class stays unknown).
@@ -1260,6 +1306,7 @@ namespace VDF.Core {
 			finally {
 				driveProgressTracker = null;
 				LogExcludedSummary();
+				folderProgressTracker = null;
 			}
 		}
 

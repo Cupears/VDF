@@ -33,9 +33,12 @@ namespace VDF.Core {
 		int StageMax,
 		DriveProgress[]? Drives
 	) {
+		public FolderProgress? Folder { get; init; }
+		public bool CountsSavedCache { get; init; }
 		public static readonly ScanProgressSnapshot Default = new("", 0, 0, TimeSpan.Zero,
 		TimeSpan.Zero, "", 0, 0, null);
 	}
+	public sealed record FolderProgress(string Path, int Done, int Total, TimeSpan Elapsed, TimeSpan Remaining);
 
 	/// <summary>One drive's slice of the analysis phase, for per-drive progress display.</summary>
 	public struct DriveProgress {

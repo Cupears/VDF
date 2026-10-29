@@ -13,7 +13,7 @@
        The log tail lives OUTSIDE the card and stretches with the window so long
        paths and remediation hints are not clipped to 780px (#836). -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-  <Grid RowDefinitions="Auto,Auto">
+  <Grid RowDefinitions="Auto,Auto,Auto">
     <StackPanel
         Grid.Row="0"
 
@@ -25,30 +25,30 @@
       <TextBlock FontSize="20" FontWeight="SemiBold" Margin="0,0,0,8"
                  Text="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Title]}" />
       <TextBlock FontSize="13" Margin="0,0,0,12" TextWrapping="Wrap" Text="{Binding ScanStageText}" />
-      <Border Padding="20" CornerRadius="12" Background="{actipro:ThemeResource Container2BackgroundBrush}"
+      <Border Padding="12" CornerRadius="9" Background="{actipro:ThemeResource Container2BackgroundBrush}" ToolTip.Tip="{Binding FolderEta.Note}"
               BorderBrush="{actipro:ThemeResource Container3BorderBrush}" BorderThickness="1">
-        <StackPanel Spacing="12">
-          <TextBlock FontSize="11" FontWeight="SemiBold" Opacity="{DynamicResource VdfTextDim80Opacity}" TextWrapping="Wrap" Text="{Binding ScanEta.Status}" />
+        <StackPanel Spacing="8">
+          <TextBlock FontSize="11" FontWeight="SemiBold" Opacity="{DynamicResource VdfTextDim80Opacity}" TextWrapping="Wrap" Text="ACTIVE FOLDER / TASK" />
+          <TextBlock FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding ActiveScanFolder}" />
           <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
-            <TextBlock FontSize="38" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding ScanEta.Remaining}"
+            <TextBlock FontSize="26" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding FolderEta.Remaining}"
                        AutomationProperties.Name="Estimated time left in current step" />
             <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-              <TextBlock FontSize="11" Opacity="{DynamicResource VdfTextDim80Opacity}" Text="ESTIMATED STEP FINISH · PC TIME" />
-              <TextBlock FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding ScanEta.Finish}" />
+              <TextBlock FontSize="11" Opacity="{DynamicResource VdfTextDim80Opacity}" Text="FOLDER FINISH · PC TIME" />
+              <TextBlock FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding FolderEta.Finish}" />
             </StackPanel>
           </Grid>
-          <ProgressBar Height="15" CornerRadius="7" Minimum="0" Maximum="100"
+          <ProgressBar Height="9" CornerRadius="4" Minimum="0" Maximum="100"
                        Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidAccent}"
-                       Value="{Binding ScanEta.Progress}" IsIndeterminate="{Binding ScanEta.UnknownTotal}"
+                       Value="{Binding FolderEta.Progress}" IsIndeterminate="{Binding FolderEta.UnknownTotal}"
                        AutomationProperties.Name="Current step progress" />
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <StackPanel Spacing="4">
-              <TextBlock FontSize="13" TextWrapping="Wrap" Text="{Binding ScanEta.Count}" />
-              <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextDim80Opacity}"><Run Text="Elapsed scan time: " /><Run Text="{Binding ScanEta.Elapsed}" /></TextBlock>
+              <TextBlock FontSize="13" TextWrapping="Wrap" Text="{Binding FolderEta.Count}" />
+              <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextDim80Opacity}"><Run Text="Folder time: " /><Run Text="{Binding FolderEta.Elapsed}" /></TextBlock>
             </StackPanel>
-            <TextBlock Grid.Column="1" FontSize="22" FontWeight="SemiBold" Text="{Binding ScanEta.Percent}" />
+            <TextBlock Grid.Column="1" FontSize="22" FontWeight="SemiBold" Text="{Binding FolderEta.Percent}" />
           </Grid>
-          <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextDim80Opacity}" TextWrapping="Wrap" Text="{Binding ScanEta.Note}" />
         </StackPanel>
       </Border>
       <StackPanel Spacing="4" Margin="0,12,0,0">
@@ -65,7 +65,7 @@
           ItemsSource="{Binding ScanDrives.Rows}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <StackPanel Spacing="12" />
+            <StackPanel Spacing="8" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
@@ -162,6 +162,19 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      </StackPanel>
+    </Border>
+    <Border Grid.Row="2" Margin="24,0,24,18" Padding="12" CornerRadius="8"
+            Background="{actipro:ThemeResource Container2BackgroundBrush}">
+      <StackPanel Spacing="6">
+        <TextBlock Text="OVERALL SELECTED SCAN · CURRENT STEP" FontSize="10" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel><TextBlock Text="{Binding ScanEta.Count}" FontSize="12" /><TextBlock FontSize="11"><Run Text="Elapsed scan time: " /><Run Text="{Binding ScanEta.Elapsed}" /></TextBlock></StackPanel>
+          <TextBlock Grid.Column="1" FontSize="14" FontWeight="SemiBold"><Run Text="{Binding ScanEta.Percent}" /><Run Text=" · " /><Run Text="{Binding ScanEta.Remaining}" /></TextBlock>
+        </Grid>
+        <ProgressBar Height="7" Maximum="100" Value="{Binding ScanEta.Progress}" IsIndeterminate="{Binding ScanEta.UnknownTotal}"
+                     Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidAccent}" AutomationProperties.Name="Overall selected scan progress" />
+        <TextBlock Text="{Binding ScanEta.Note}" FontSize="11" TextWrapping="Wrap" />
       </StackPanel>
     </Border>
   </Grid>

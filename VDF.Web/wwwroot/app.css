@@ -1519,3 +1519,15 @@ input.input-invalid:focus { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
 .eta-card .progress-bar-track { height:14px; }
 .eta-stats { margin-top:1rem; }
 @media (max-width:520px) { .eta-hero { grid-template-columns:1fr; } .eta-finish { text-align:left; } .eta-card { padding:1rem; } }
+
+/* Compact folder card, with the selected-scan totals kept below it. */
+.eta-card { padding:.8rem 1rem; margin:.6rem 0; }
+.eta-folder { margin:.2rem 0 .6rem; font-weight:600; overflow-wrap:anywhere; }
+.eta-time { font-size:clamp(1.4rem,4vw,1.9rem); }
+.eta-status { margin:0 0 .3rem; font-size:.65rem; }
+.eta-hero { margin-bottom:.6rem; }
+.eta-stats { margin-top:.6rem; }
+.eta-card .progress-bar-track,.eta-unknown-track { height:8px; }
+.eta-overall { margin:1rem 0; padding:.7rem 1rem; border:1px solid var(--border-default); border-radius:8px; font-size:.85rem; }
+.eta-overall p { margin:.4rem 0; }
+.eta-overall small { opacity:.8; }

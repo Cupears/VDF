@@ -48,6 +48,10 @@ Build files, databases and logs are also excluded from Git.
 Desktop and mobile share a larger ETA card with time left, estimated step finish,
 percentage and elapsed scan time. It clearly labels unknown totals, paused scans,
 and wrapping-up work. Estimates cover the current step, not all later scan phases.
+While files are analysed, the card names the active include folder and shows that
+folder's own progress, time left and finish time, with the overall selected-scan
+totals kept below it. Loading or indexing the saved cache says "Preparing saved
+cache" rather than showing the database size as a slow scan of every original file.
 Settings > Scan includes "Include very dark photos". It retries previously dark-skipped
 photos on the next scan and keeps their grayscale samples for classic matching.
 Matches carry a "Dark photo" review label. The switch syncs with the desktop;

@@ -38,6 +38,8 @@ namespace VDF.Web.Services {
 		public string CurrentStage { get; init; } = string.Empty;
 		public int StageCurrent { get; init; }
 		public int StageMax { get; init; }
+		public VDF.Core.FolderProgress? Folder { get; init; }
+		public bool CountsSavedCache { get; init; }
 	}
 
 	/// <summary>
@@ -116,6 +118,8 @@ namespace VDF.Web.Services {
 					CurrentStage = e.CurrentStage ?? string.Empty,
 					StageCurrent = e.StageCurrent,
 					StageMax = e.StageMax,
+					Folder = e.Folder,
+					CountsSavedCache = e.CountsSavedCache,
 				};
 				Notify();
 			};

@@ -8,13 +8,17 @@ public sealed record ScanEtaDisplay(string Remaining, string Finish, string Stat
     public static ScanEtaDisplay From(ScanProgressSnapshot progress, bool paused, DateTimeOffset now) {
         int current = Math.Max(0, progress.CurrentPosition);
         int total = progress.MaxPosition;
-        bool unknown = total <= 0;
+        bool unknown = total <= 0 || progress.CountsSavedCache;
         double percent = unknown ? 0 : Math.Clamp(100d * current / total, 0, 100);
         string count = unknown ? $"{current:N0} found · still counting the total" : $"{current:N0} / {total:N0} items";
         string remaining, finish, status, note;
         if (paused) {
             remaining = "Paused"; finish = "Updates when resumed"; status = "SCAN PAUSED";
             note = "The clock is paused. Resume the scan to refresh the estimate.";
+        } else if (progress.CountsSavedCache) {
+            remaining = "Preparing"; finish = "Not available yet"; status = "PREPARING SAVED CACHE";
+            note = "Reading the SSD cache. This is not scanning every original file.";
+            count = "Preparing saved cache";
         } else if (unknown) {
             remaining = "Still counting"; finish = "Not available yet"; status = "FINDING THE TOTAL";
             note = "VDF is listing folders or preparing work. No finish time is known yet.";
