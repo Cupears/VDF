@@ -57,6 +57,33 @@ public sealed class ResultsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Results>();
 
 	[Fact]
+	public void LargeGroup_ShowAllExpandsTheCardsAndKeepsFullGroupSelection() {
+		var group = Guid.NewGuid();
+		for (int i = 0; i < 25; i++) Seed($"large-{i}.mp4", group);
+		var page = RenderPage();
+		Assert.Equal(12, page.FindAll(".dup-card").Count);
+		Assert.Single(page.FindAll(".group-show-all"));
+		page.Find(".group-check-all").Click();
+		Assert.Equal(25, scan.SelectedItems.Count);
+		page.Find(".group-show-all").Click();
+		Assert.Equal(25, page.FindAll(".dup-card").Count);
+		Assert.Empty(page.FindAll(".group-show-all"));
+		Assert.All(page.FindAll(".card-check input"), c => Assert.True(c.HasAttribute("checked")));
+	}
+
+	[Fact]
+	public async Task TrashBoth_AdvancesAfterTheCurrentGroupDisappears() {
+		var first = Guid.Parse("00000000-0000-0000-0000-000000000001"); var next = Guid.Parse("00000000-0000-0000-0000-000000000002");
+		Seed("already-gone-a.mp4", first); Seed("already-gone-b.mp4", first);
+		Seed("next-a.mp4", next); Seed("next-b.mp4", next);
+		var page = RenderPage();
+		page.FindAll(".compare-btn").First().Click();
+		await page.FindAll(".compare-actions button").Single(b => b.TextContent == "Trash both").ClickAsync(new());
+		Assert.Equal(2, scan.Duplicates.Count);
+		page.WaitForAssertion(() => Assert.True(page.Find("#compare-modal").TextContent.Contains("next-a.mp4"), page.Find("#compare-modal").TextContent));
+	}
+
+	[Fact]
 	public async Task TwoBrowsers_ShareChecksAndResultRemovals() {
 		var group = Guid.NewGuid(); Seed("copy-a.mp4", group); Seed("copy-b.mp4", group);
 		var desktop = RenderPage(); var phone = RenderPage();

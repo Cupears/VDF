@@ -1,4 +1,4 @@
-// /*
+﻿// /*
 //     Copyright (C) 2026 0x90d
 //     This file is part of VideoDuplicateFinder
 //     VideoDuplicateFinder is free software: you can redistribute it and/or modify
@@ -54,6 +54,10 @@ namespace VDF.GUI.Views {
 			//Settings must be load before XAML is parsed
 			SettingsFile.LoadSettingsAtStartup();
 			var sharedSettingsPath = Environment.GetEnvironmentVariable(VDF.Core.Utils.SharedScanSettings.EnvironmentKey);
+			if (string.IsNullOrWhiteSpace(sharedSettingsPath)) {
+				sharedSettingsPath = Path.Combine(AppContext.BaseDirectory, ".shared-scan-settings.json");
+				Environment.SetEnvironmentVariable(VDF.Core.Utils.SharedScanSettings.EnvironmentKey, sharedSettingsPath);
+			}
 			if (!string.IsNullOrWhiteSpace(sharedSettingsPath)) {
 				sharedSettingsSync = new DesktopSettingsSync(sharedSettingsPath);
 				try { sharedSettingsSync.Synchronize(SettingsFile.Instance); }

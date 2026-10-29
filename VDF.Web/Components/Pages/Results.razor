@@ -1,4 +1,4 @@
-@page "/results"
+﻿@page "/results"
 @rendermode InteractiveServer
 @inject ScanService Scan
 @inject WebSettingsService WebSettings
@@ -194,8 +194,7 @@ else {
 
             @if (!isCollapsed) {
                 <div class="dup-cards review-@WebSettings.ResultsView" style="--preview-width:@(WebSettings.ResultsPreviewWidth)px">
-                    @foreach (var item in sortedItems) {
-                        if (_hiddenItems.Contains(item.Path)) continue;
+                    @foreach (var item in RenderItems(sortedItems, groupId)) {
                         bool sel = _selected.Contains(item);
                         bool isBest = ReferenceEquals(item, bestItem);
 
@@ -344,6 +343,13 @@ else {
                         </div>
                     }
 
+                    @{ var overflowCount = itemsNotHidden(sortedItems).Count - RenderItems(sortedItems, groupId).Count; }
+                    @if (overflowCount > 0) {
+                        <button class="hidden-indicator group-show-all" @onclick="() => ShowAllInGroup(sortedItems)">
+                            +@overflowCount more not loaded — click to show all
+                        </button>
+                    }
+
                     @if (hiddenCount > 0) {
                         <div class="hidden-indicator" @onclick="() => ShowAllInGroup(sortedItems)">
                             +@hiddenCount hidden — click to show all
@@ -440,8 +446,9 @@ else {
             <button @onclick="() => KeepCompareSide(true)" disabled="@(_compareA == _compareB)">Keep A, check B</button>
             <button @onclick="() => KeepCompareSide(false)" disabled="@(_compareA == _compareB)">Keep B, check A</button>
             <button @onclick="CheckCompareAndNext">Check group + next (S)</button>
+            <button @onclick="() => DeleteBothInCompare()" disabled="@(_compareA == _compareB || Scan.FileOpRunning)">Trash both</button>
             <button @onclick="NextCompareGroup">Next group</button>
-            <span>@_selected.Count checked · no files are deleted here</span>
+            <span>@_selected.Count checked · Trash both moves the displayed pair to the Recycle Bin</span>
         </div>
     </div>
 }
@@ -594,6 +601,7 @@ else {
     // QoL state
     readonly HashSet<Guid> _collapsedGroups = new();
     readonly HashSet<string> _hiddenItems = new();
+    readonly HashSet<Guid> _expandedGroups = new();
     readonly Dictionary<Guid, string> _hoveredMetrics = new();
     readonly Dictionary<Guid, string> _groupSorts = new();
     int _focusedGroup = -1;
@@ -608,6 +616,10 @@ else {
     int _compareFrame;
     ElementReference _compareOverlay;
     bool _focusCompare;
+
+    // Large groups: cap the number of cards rendered per group so the page stays responsive.
+    // The full group is still selectable and comparable - only the initial render is capped.
+    const int GroupRenderLimit = 12;
 
     enum CompareMode { SideBySide, Swipe, Stacked }
 
@@ -802,8 +814,10 @@ else {
     void HideItem(string path) => _hiddenItems.Add(path);
 
     void ShowAllInGroup(List<DuplicateItem> items) {
-        foreach (var item in items)
+        foreach (var item in items) {
             _hiddenItems.Remove(item.Path);
+            _expandedGroups.Add(item.GroupId);
+        }
     }
 
     // === QoL: Fullsize Compare ===
@@ -825,11 +839,12 @@ else {
     void StepCompareFrame(int delta) =>
         _compareFrame = Math.Clamp(_compareFrame + delta, 0, CompareFrameCount() - 1);
 
-    void OnCompareKeyDown(KeyboardEventArgs e) {
+    async Task OnCompareKeyDown(KeyboardEventArgs e) {
         switch (e.Key) {
             case "a": case "A": KeepCompareSide(true); break;
             case "d": case "D": KeepCompareSide(false); break;
             case "s": case "S": CheckCompareAndNext(); break;
+            case "Delete": case "Backspace": if (!Scan.FileOpRunning) await DeleteBothInCompare(); break;
             case "ArrowLeft": StepCompareFrame(-1); break;
             case "ArrowRight": StepCompareFrame(1); break;
             case "Escape": CloseCompare(); break;
@@ -856,7 +871,7 @@ else {
 
     void CloseCompare() => _compareVisible = false;
     void KeepCompareSide(bool keepA) {
-        if (_compareItems == null || _compareA == _compareB) return;
+        if (_compareItems == null || _compareA == _compareB || Scan.FileOpRunning) return;
         _selected.Remove(_compareItems[keepA ? _compareA : _compareB]);
         _selected.Add(_compareItems[keepA ? _compareB : _compareA]);
     }
@@ -865,13 +880,44 @@ else {
         ToggleGroup(_compareItems, true);
         NextCompareGroup();
     }
+    async Task DeleteBothInCompare() {
+        if (_compareItems == null || _compareA == _compareB || Scan.FileOpRunning) return;
+        var items = new List<DuplicateItem> { _compareItems[_compareA], _compareItems[_compareB] };
+        var groups = GetFilteredGroups();
+        int current = groups.FindIndex(g => g.Key == items[0].GroupId);
+        var nextGroup = current >= 0 ? groups.Skip(current + 1).Select(g => g.Key).FirstOrDefault() : Guid.Empty;
+        var result = await Scan.DeleteItemsAsync(items, false);
+        foreach (var it in items.Where(it => !Scan.Duplicates.Contains(it))) _selected.Remove(it);
+        ShowOpResult($"{result.Done} file(s) moved to trash", result);
+        if (result.Done != items.Count) return;
+        var remaining = GetFilteredGroups();
+        int next = remaining.FindIndex(g => g.Key == nextGroup);
+        if (next >= 0) {
+            _page = next / WebSettings.ResultsPageSize;
+            OpenCompare(SortItems(remaining[next].ToList()));
+        } else CloseCompare();
+    }
     void NextCompareGroup() {
         if (_compareItems == null) return;
         var groups = GetFilteredGroups();
         int index = groups.FindIndex(g => g.Key == _compareItems[0].GroupId);
         if (index >= 0 && index + 1 < groups.Count) {
             _page = (index + 1) / WebSettings.ResultsPageSize;
-            OpenCompare(SortItems(groups[index + 1].ToList()));
+            var next = SortItems(groups[index + 1].ToList());
+            if (next.Count >= 2) {
+                OpenCompare(next);
+            } else {
+                // skip to find next group with >=2 items
+                for (int i = index + 2; i < groups.Count; i++) {
+                    next = SortItems(groups[i].ToList());
+                    if (next.Count >= 2) {
+                        _page = i / WebSettings.ResultsPageSize;
+                        OpenCompare(next);
+                        return;
+                    }
+                }
+                CloseCompare(); ShowMsg("Last group reached. Review your checked files before deleting.", false);
+            }
         } else { CloseCompare(); ShowMsg("Last group reached. Review your checked files before deleting.", false); }
     }
 
@@ -982,6 +1028,17 @@ else {
             _ => items.OrderByDescending(i => i.Similarity).ToList()
         };
     }
+
+    /// Renders at most GroupRenderLimit cards per group. Items beyond the limit are still
+    /// selectable and comparable - they are only hidden from the initial render so a group
+    /// with dozens of copies does not stall the page or crash it.
+    List<DuplicateItem> RenderItems(List<DuplicateItem> items, Guid groupId) {
+        var shown = items.Where(i => !_hiddenItems.Contains(i.Path)).ToList();
+        return _expandedGroups.Contains(groupId) ? shown : shown.Take(GroupRenderLimit).ToList();
+    }
+
+    List<DuplicateItem> itemsNotHidden(List<DuplicateItem> items) =>
+        items.Where(i => !_hiddenItems.Contains(i.Path)).ToList();
 
     // === QoL: Hover-to-Compare ===
     void SetHoveredMetric(Guid groupId, string metric) => _hoveredMetrics[groupId] = metric;

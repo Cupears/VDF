@@ -115,7 +115,7 @@ window.vdf = {
                         vdf._observer.unobserve(img);
                     }
                 });
-            }, { rootMargin: '200px' });
+            }, { rootMargin: '400px' });
         }
         // Only observe images that still have data-src (not yet loaded)
         document.querySelectorAll('img[data-src]').forEach(function (img) {

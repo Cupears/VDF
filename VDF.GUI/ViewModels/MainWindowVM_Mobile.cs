@@ -20,14 +20,14 @@ public partial class MainWindowVM {
     public string MobileSessionStatus { get; private set; } = "Mobile server is off";
 
     async Task StartMobileServerAsync() {
-        if (Environment.GetEnvironmentVariable("VDF_DESKTOP_MOBILE") != "1") return;
+        string? root = VDF.GUI.Utils.DesktopMobilePaths.FindContentRoot();
+        if (root == null)
+            throw new InvalidOperationException("The mobile content folder is missing. Use Start VDF.cmd or put 'mobile' beside VDF.GUI.exe.");
         SyncCoreSettings();
         AttachMobileSession(new WebSettingsService());
-        string root = Environment.GetEnvironmentVariable("VDF_MOBILE_CONTENT_ROOT")
-            ?? throw new InvalidOperationException("The mobile content folder is missing. Use Start VDF.cmd.");
         mobileServer = await WebServer.CreateAsync(new[] { "--urls", "http://127.0.0.1:5001" }, mobileSession, root);
         await mobileServer.StartAsync();
-        MobileSessionStatus = "Phone shares this desktop scan and database · live progress, results and checked files";
+        MobileSessionStatus = "Phone shares this desktop scan and database · live progress, results and checked files (http://127.0.0.1:5001)";
         this.RaisePropertyChanged(nameof(MobileSessionStatus));
         Logger.Instance.Info(MobileSessionStatus);
     }
