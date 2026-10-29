@@ -19,6 +19,8 @@ quality rule ordering, and results display preferences. Shared scan choices save
 use Save Settings for web display preferences.
 Results offers cards, a desktop-style list, compact rows, filters, and paged groups.
 The comparer can check either copy or check the group and move to the next one.
+Browse uses one-tap folder navigation, drive labels and free space, breadcrumbs,
+quick locations, filtering, and a separate Use this folder action.
 Login details are stored locally in Phone-login.txt; they are excluded from Git.
 Build files, databases and logs are also excluded from Git.
 

@@ -1,4 +1,17 @@
 window.vdf = {
+    initFolderPicker: function (dialog) {
+        if (!dialog || dialog.dataset.focusTrap) return;
+        dialog.dataset.focusTrap = 'true';
+        dialog.addEventListener('keydown', function (event) {
+            if (event.key !== 'Tab') return;
+            var controls = Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]'))
+                .filter(function (node) { return node.getClientRects().length > 0; });
+            if (!controls.length) return;
+            var first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) { event.preventDefault(); first.focus(); }
+        });
+    },
     getAppearance: function () {
         return [localStorage.getItem('vdf-theme') || 'system', localStorage.getItem('vdf-scale') || '100', localStorage.getItem('vdf-motion') || 'system'];
     },

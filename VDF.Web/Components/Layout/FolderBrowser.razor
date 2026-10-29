@@ -1,146 +1,123 @@
 @rendermode InteractiveServer
+@implements IDisposable
+@inject IFolderBrowserSource BrowserSource
+@inject IJSRuntime JS
 
 @if (_visible) {
+    var filtered = _entries.Where(e => string.IsNullOrWhiteSpace(_search) || e.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
     <div class="folder-overlay" @onclick="Close"></div>
-    <div class="folder-browser">
-        <div class="folder-header">
-            <h3>Select Folder</h3>
-            <button class="compare-close" @onclick="Close">&#x2715;</button>
+    <div class="folder-browser folder-picker" role="dialog" aria-modal="true" aria-labelledby="@_titleId" tabindex="-1" @ref="_dialog" @onkeydown="OnDialogKeyDown">
+        <div class="folder-header"><div><span class="eyebrow">FOLDERS ON YOUR PC</span><h3 id="@_titleId">@Title</h3><p>Tap once to open a folder, then choose “Use this folder”.</p></div>
+            <button class="compare-close" aria-label="Close folder browser" @onclick="Close">✕</button></div>
+        <div class="folder-picker-toolbar">
+            <button aria-label="Back" title="Back" disabled="@(_back.Count == 0 || _loading)" @onclick="GoBack">←</button>
+            <button aria-label="Parent folder" title="Parent folder" disabled="@(_currentPath == null || _loading)" @onclick="GoUp">↑</button>
+            <button @onclick="() => Navigate(null)" disabled="@_loading">This PC</button>
+            <button aria-label="Refresh folders" title="Refresh" @onclick="Refresh" disabled="@_loading">↻</button>
         </div>
-        <div class="folder-path-bar">
-            <button @onclick="GoUp" disabled="@(string.IsNullOrEmpty(_currentPath))" title="Go up">&#x2191;</button>
-            <input type="text" @bind="_currentPath" @bind:event="oninput" @onkeydown="OnPathKeyDown"
-                   placeholder="Enter path..." />
-            <button @onclick="NavigateTo">Go</button>
-        </div>
-        @if (_error != null) {
-            <div class="folder-error">@_error</div>
-        }
-        <div class="folder-list">
-            @if (_drives != null && string.IsNullOrEmpty(_currentPath)) {
-                @foreach (var drive in _drives) {
-                    <div class="folder-item" @ondblclick="() => OpenFolder(drive)">
-                        <span class="folder-icon">&#x1F4BD;</span>
-                        <span>@drive</span>
-                    </div>
+        <div class="folder-path-bar"><input aria-label="Folder path on this PC" type="text" @bind="_pathInput" @bind:event="oninput" @onkeydown="OnPathKeyDown" placeholder="Paste a PC folder path or network share…" spellcheck="false" />
+            <button class="folder-go" @onclick="GoToTypedPath" disabled="@_loading">Go</button></div>
+        <nav class="folder-breadcrumbs" aria-label="Folder location"><button @onclick="() => Navigate(null)">This PC</button>
+            @foreach (var part in Breadcrumbs()) { <span aria-hidden="true">›</span><button @onclick="() => Navigate(part.Path)">@part.Name</button> }
+        </nav>
+        <div class="folder-picker-content">
+            <aside class="folder-places" aria-label="Quick locations"><span class="eyebrow">QUICK LOCATIONS</span>
+                @foreach (var place in Places()) { <button @onclick="() => Navigate(place.Path)" title="@place.Path">@place.Name</button> }
+                @if (SavedFolders.Any()) {
+                    <span class="eyebrow">YOUR SCAN FOLDERS</span>
+                    @foreach (var path in SavedFolders.Distinct(StringComparer.OrdinalIgnoreCase).Take(8)) { <button @onclick="() => Navigate(path)" title="@path">@FolderName(path)</button> }
                 }
-            }
-            else if (_directories != null) {
-                @foreach (var dir in _directories) {
-                    <div class="folder-item" @ondblclick="() => OpenFolder(dir)">
-                        <span class="folder-icon">&#x1F4C1;</span>
-                        <span>@System.IO.Path.GetFileName(dir)</span>
-                    </div>
-                }
-                @if (_directories.Length == 0) {
-                    <div class="folder-empty">No subdirectories</div>
-                }
-            }
+            </aside>
+            <div class="folder-main">
+                <div class="folder-search-row"><input aria-label="Filter folders" type="search" @bind="_search" @bind:event="oninput" @bind:after="ResetCount" placeholder="Filter folders here…" />
+                    <label><input type="checkbox" @bind="_showHidden" @bind:after="Refresh" />Hidden</label></div>
+                @if (_error != null) { <div class="folder-error" role="alert">@_error</div> }
+                <div class="folder-list" aria-busy="@_loading">
+                    @if (_loading) { <div class="folder-empty" role="status"><span class="spinner"></span> Loading folders…</div> }
+                    else {
+                        @foreach (var entry in filtered.Take(_displayCount)) {
+                            <button class="folder-row @(entry.IsDrive ? "drive" : "")" disabled="@(!entry.IsReady)" @onclick="() => Navigate(entry.Path)" title="@entry.Path">
+                                <span class="folder-icon" aria-hidden="true">@(entry.IsDrive ? "▣" : "📁")</span>
+                                <span class="folder-row-body"><strong>@entry.Name</strong><small>@(entry.IsDrive ? entry.Detail : entry.Path)</small>
+                                    @if (entry.UsedPercent.HasValue) { <span class="drive-capacity" aria-label="@($"{entry.UsedPercent}% used")"><span style="width:@(entry.UsedPercent)%"></span></span> }</span>
+                                <span class="folder-chevron" aria-hidden="true">›</span>
+                            </button>
+                        }
+                        @if (filtered.Count == 0) { <div class="folder-empty">@(string.IsNullOrWhiteSpace(_search) ? "No subfolders here. You can still use this folder." : "No folders match your filter.")</div> }
+                        @if (filtered.Count > _displayCount) { <button class="folder-show-more" @onclick="() => _displayCount += PageSize">Show more (@(filtered.Count - _displayCount) remaining)</button> }
+                    }
+                </div>
+                <div class="folder-list-count">@filtered.Count @(string.IsNullOrEmpty(_currentPath) ? "drives" : "folders") · folders only</div>
+            </div>
         </div>
-        <div class="folder-footer">
-            <span class="folder-selected" title="@_currentPath">@(_currentPath ?? "No folder selected")</span>
-            <button class="primary" @onclick="SelectCurrent" disabled="@string.IsNullOrEmpty(_currentPath)">Select</button>
-            <button @onclick="Close">Cancel</button>
-        </div>
+        <div class="folder-footer"><div class="folder-selected"><small>SELECTED FOLDER</small><strong title="@_currentPath">@(_currentPath ?? "Open a drive or choose a folder")</strong></div>
+            <div class="folder-footer-actions"><button @onclick="Close">Cancel</button><button class="primary folder-use" @onclick="SelectCurrent" disabled="@(_currentPath == null || _loading)">Use this folder</button></div></div>
     </div>
 }
 
 @code {
     [Parameter] public EventCallback<string> OnFolderSelected { get; set; }
+    [Parameter] public string Title { get; set; } = "Choose a folder";
+    [Parameter] public IEnumerable<string> SavedFolders { get; set; } = Array.Empty<string>();
+    const int PageSize = 80;
+    readonly string _titleId = "folder-title-" + Guid.NewGuid().ToString("N");
+    readonly Stack<string?> _back = new();
+    IReadOnlyList<FolderBrowserEntry> _entries = Array.Empty<FolderBrowserEntry>();
+    bool _visible, _loading, _showHidden, _hasLocation, _focusRequested;
+    string? _currentPath, _error;
+    string _pathInput = string.Empty, _search = string.Empty;
+    int _displayCount = PageSize, _navigationVersion;
+    CancellationTokenSource? _navigation;
+    ElementReference _dialog;
 
-    bool _visible;
-    string? _currentPath;
-    string[]? _directories;
-    string[]? _drives;
-    string? _error;
-
-    public void Open(string? initialPath = null) {
-        _visible = true;
-        _error = null;
-        _currentPath = initialPath;
-
-        if (!string.IsNullOrEmpty(_currentPath) && Directory.Exists(_currentPath)) {
-            LoadDirectory(_currentPath);
-        }
-        else {
-            LoadDrives();
-        }
-        StateHasChanged();
+    public async Task Open(string? initialPath = null) {
+        _visible = true; _error = null; _search = string.Empty; _back.Clear(); _focusRequested = true;
+        await Navigate(initialPath ?? _currentPath, false);
     }
-
-    void Close() {
-        _visible = false;
-        StateHasChanged();
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        if (!_visible || !_focusRequested) return;
+        _focusRequested = false;
+        try { await _dialog.FocusAsync(); await JS.InvokeVoidAsync("vdf.initFolderPicker", _dialog); } catch { }
     }
-
-    void LoadDrives() {
+    void Close() { _navigationVersion++; _navigation?.Cancel(); _visible = false; _loading = false; StateHasChanged(); }
+    async Task Navigate(string? path, bool remember = true) {
+        _navigation?.Cancel(); _navigation?.Dispose(); _navigation = new();
+        int version = ++_navigationVersion;
+        _loading = true; _error = null; StateHasChanged();
         try {
-            _drives = Directory.GetLogicalDrives();
-            _directories = null;
-            _currentPath = null;
-            _error = null;
-        }
-        catch (Exception ex) {
-            _error = ex.Message;
-            // On Linux/macOS there are no "drives", start at root
-            _currentPath = "/";
-            LoadDirectory("/");
-        }
+            var snapshot = await BrowserSource.ReadAsync(path, _showHidden, _navigation.Token);
+            if (version != _navigationVersion || !_visible) return;
+            if (remember && _hasLocation && !string.Equals(_currentPath, snapshot.Path, StringComparison.OrdinalIgnoreCase)) _back.Push(_currentPath);
+            if (!string.Equals(_currentPath, snapshot.Path, StringComparison.OrdinalIgnoreCase)) _search = string.Empty;
+            _currentPath = snapshot.Path; _pathInput = snapshot.Path ?? string.Empty; _entries = snapshot.Entries;
+            _hasLocation = true; ResetCount();
+        } catch (OperationCanceledException) { }
+        catch (Exception ex) { if (version == _navigationVersion) _error = ex is UnauthorizedAccessException ? "You do not have access to that folder. Your current selection is unchanged." : ex.Message; }
+        finally { if (version == _navigationVersion) { _loading = false; StateHasChanged(); } }
     }
-
-    void LoadDirectory(string path) {
-        try {
-            _directories = Directory.GetDirectories(path)
-                .OrderBy(d => System.IO.Path.GetFileName(d), StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            _drives = null;
-            _currentPath = path;
-            _error = null;
-        }
-        catch (UnauthorizedAccessException) {
-            _error = "Access denied.";
-            _directories = Array.Empty<string>();
-        }
-        catch (Exception ex) {
-            _error = ex.Message;
-            _directories = Array.Empty<string>();
-        }
-    }
-
-    void OpenFolder(string path) {
-        _currentPath = path;
-        LoadDirectory(path);
-    }
-
-    void GoUp() {
-        if (string.IsNullOrEmpty(_currentPath)) return;
-        var parent = Directory.GetParent(_currentPath);
-        if (parent != null) {
-            _currentPath = parent.FullName;
-            LoadDirectory(_currentPath);
-        }
-        else {
-            LoadDrives();
-        }
-    }
-
-    void NavigateTo() {
-        if (!string.IsNullOrEmpty(_currentPath) && Directory.Exists(_currentPath)) {
-            LoadDirectory(_currentPath);
-        }
-        else {
-            _error = "Directory not found.";
-        }
-    }
-
-    void OnPathKeyDown(KeyboardEventArgs e) {
-        if (e.Key == "Enter") NavigateTo();
-    }
-
+    Task Refresh() => Navigate(_currentPath, false);
+    Task GoToTypedPath() => string.IsNullOrWhiteSpace(_pathInput) ? Navigate(null) : Navigate(_pathInput);
+    Task GoBack() => _back.Count == 0 ? Task.CompletedTask : Navigate(_back.Pop(), false);
+    Task GoUp() => _currentPath == null ? Task.CompletedTask : Navigate(Directory.GetParent(_currentPath)?.FullName);
+    Task OnPathKeyDown(KeyboardEventArgs e) => e.Key == "Enter" ? GoToTypedPath() : Task.CompletedTask;
+    void OnDialogKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") Close(); }
+    void ResetCount() => _displayCount = PageSize;
     async Task SelectCurrent() {
-        if (!string.IsNullOrEmpty(_currentPath)) {
-            await OnFolderSelected.InvokeAsync(_currentPath);
-            Close();
-        }
+        if (_loading || _currentPath == null) return;
+        if (!Directory.Exists(_currentPath)) { _error = "This folder is no longer available. Refresh or choose another folder."; return; }
+        await OnFolderSelected.InvokeAsync(_currentPath); Close();
     }
+    static string FolderName(string path) => System.IO.Path.GetFileName(path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)) is { Length: > 0 } name ? name : path;
+    IEnumerable<(string Path, string Name)> Breadcrumbs() {
+        var parts = new List<(string Path, string Name)>();
+        if (_currentPath == null) return parts;
+        for (var directory = new DirectoryInfo(_currentPath); directory != null; directory = directory.Parent) parts.Add((directory.FullName, FolderName(directory.FullName)));
+        parts.Reverse(); return parts;
+    }
+    static IEnumerable<(string Path, string Name)> Places() {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var paths = new[] { (home, "Home"), (System.IO.Path.Combine(home, "Downloads"), "Downloads"), (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Documents"), (Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Desktop") };
+        return paths.Where(p => !string.IsNullOrEmpty(p.Item1) && Directory.Exists(p.Item1));
+    }
+    public void Dispose() { _navigationVersion++; _navigation?.Cancel(); _navigation?.Dispose(); }
 }

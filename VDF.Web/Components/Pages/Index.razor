@@ -104,7 +104,7 @@ else {
             <input @bind="_newInclude" @bind:event="oninput" @onkeydown="OnIncludeKeyDown"
                    aria-label="Folder to scan" placeholder="Folder path on your PC" class="@PathInputClass(_newInclude)" />
             <button @onclick="AddInclude" disabled="@string.IsNullOrWhiteSpace(_newInclude)">Add</button>
-            <button class="browse-btn" @onclick="() => _includeBrowser?.Open()">Browse…</button>
+            <button class="browse-btn" @onclick="() => _includeBrowser?.Open(string.IsNullOrWhiteSpace(_newInclude) ? null : _newInclude) ?? Task.CompletedTask">Browse…</button>
         </div>
 
         <h3>Folders to skip</h3><p class="section-help">Keep these folders out of the scan.</p>
@@ -122,11 +122,11 @@ else {
             <input @bind="_newExclude" @bind:event="oninput" @onkeydown="OnExcludeKeyDown"
                    aria-label="Folder to skip" placeholder="Folder path to skip" />
             <button @onclick="AddExclude" disabled="@string.IsNullOrWhiteSpace(_newExclude)">Add</button>
-            <button class="browse-btn" @onclick="() => _excludeBrowser?.Open()">Browse…</button>
+            <button class="browse-btn" @onclick="() => _excludeBrowser?.Open(string.IsNullOrWhiteSpace(_newExclude) ? null : _newExclude) ?? Task.CompletedTask">Browse…</button>
         </div>
 
-        <FolderBrowser @ref="_includeBrowser" OnFolderSelected="OnIncludeFolderSelected" />
-        <FolderBrowser @ref="_excludeBrowser" OnFolderSelected="OnExcludeFolderSelected" />
+        <FolderBrowser @ref="_includeBrowser" Title="Choose a folder to scan" SavedFolders="Scan.Settings.IncludeList" OnFolderSelected="OnIncludeFolderSelected" />
+        <FolderBrowser @ref="_excludeBrowser" Title="Choose a folder to skip" SavedFolders="Scan.Settings.IncludeList" OnFolderSelected="OnExcludeFolderSelected" />
         <div class="scan-quick-options">
             <label><input type="checkbox" @bind="Scan.Settings.IncludeSubDirectories" />Include subfolders</label>
             <label><input type="checkbox" @bind="Scan.Settings.IncludeImages" />Include images alongside videos</label>

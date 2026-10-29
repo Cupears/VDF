@@ -14,6 +14,7 @@ public sealed class ScanSetupTests : BunitContext {
         WebSettingsService.TestOverrideSettingsPath = settingsPath;
         scan = new ScanService(web);
         Services.AddSingleton(scan); Services.AddSingleton(web); Services.AddSingleton(new FFmpegSetupService());
+        Services.AddSingleton<IFolderBrowserSource, FolderBrowserSource>();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
     protected override void Dispose(bool disposing) {

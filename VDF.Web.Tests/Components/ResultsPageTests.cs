@@ -219,7 +219,7 @@ public sealed class ResultsPageTests : BunitContext {
 	}
 
 	[Fact]
-	public void Metadata_ColumnCheckbox_SelectsTheFileOnThePage_AndEscCloses() {
+	public async Task Metadata_ColumnCheckbox_SelectsTheFileOnThePage_AndEscCloses() {
 		MetadataLookup.Reader = FakeTags;
 		try {
 			Guid group = Guid.NewGuid();
@@ -231,8 +231,8 @@ public sealed class ResultsPageTests : BunitContext {
 
 			var gone = page.FindAll(".metadata-table thead th").Single(th => th.TextContent.Contains("gone.mov"));
 			Assert.Contains("file not available", gone.TextContent);
-			page.FindAll(".metadata-table thead input").Single(i => i.GetAttribute("aria-label") == "Select wrong1.mov").Change(true);
-			Assert.Contains("1 selected", page.Markup);
+			await page.InvokeAsync(() => page.FindAll(".metadata-table thead input").Single(i => i.GetAttribute("aria-label") == "Select wrong1.mov").Change(true));
+			page.WaitForAssertion(() => Assert.Contains("1 selected", page.Markup));
 			Assert.Contains("selected", page.FindAll(".dup-card").Single(c => c.TextContent.Contains("wrong1.mov")).ClassName);
 
 			page.Find("#metadata-modal").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });

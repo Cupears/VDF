@@ -1439,3 +1439,60 @@ input.input-invalid:focus { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
     .scan-stat-grid>div { padding:.7rem; }
     .scan-stat-grid strong { font-size:.8rem; overflow-wrap:anywhere; }
 }
+
+/* Touch-first PC folder picker. Navigation and selection are separate actions. */
+.folder-picker { width:min(960px,96vw); max-width:960px; height:min(760px,90dvh); max-height:90dvh; border-radius:14px; }
+.folder-picker .folder-header { align-items:flex-start; padding:1rem 1.2rem; gap:1rem; }
+.folder-picker .folder-header h3 { font-size:1.1rem; margin:.35rem 0; }
+.folder-picker .folder-header p { color:var(--text-muted); margin:.35rem 0 0; font-size:.75rem; line-height:1.5; }
+.folder-picker-toolbar { display:flex; gap:.4rem; padding:.7rem 1rem 0; }
+.folder-picker-toolbar button { min-width:42px; min-height:40px; padding:.45rem .65rem; }
+.folder-picker .folder-path-bar { padding:.6rem 1rem; border:0; }
+.folder-picker .folder-path-bar input { width:0; min-width:0; font-size:.8rem; min-height:42px; border:1px solid var(--border-input); color:var(--text-primary); background:var(--bg-input); padding:.6rem; border-radius:7px; }
+.folder-picker .folder-path-bar button { min-height:42px; padding:0 1rem; }
+.folder-breadcrumbs { display:flex; align-items:center; gap:.25rem; padding:0 1rem .6rem; overflow-x:auto; flex-shrink:0; border-bottom:1px solid var(--border-subtle); }
+.folder-breadcrumbs button { background:transparent; border:0; white-space:nowrap; font-size:.75rem; padding:.4rem .5rem; min-height:34px; }
+.folder-breadcrumbs span { color:var(--text-muted); }
+.folder-picker-content { display:grid; grid-template-columns:175px minmax(0,1fr); flex:1; min-height:0; }
+.folder-places { display:flex; flex-direction:column; gap:.35rem; padding:1rem .65rem; border-right:1px solid var(--border-subtle); overflow-y:auto; background:var(--bg-body); }
+.folder-places .eyebrow { font-size:.58rem; padding:.35rem .4rem; margin-top:.3rem; }
+.folder-places button { text-align:left; font-size:.75rem; padding:.6rem .65rem; min-height:40px; background:transparent; border:0; overflow-wrap:anywhere; }
+.folder-places button:hover { background:var(--bg-hover); }
+.folder-main { display:flex; flex-direction:column; min-height:0; min-width:0; }
+.folder-search-row { display:flex; align-items:center; gap:.7rem; padding:.75rem; flex-shrink:0; }
+.folder-search-row>input { flex:1; width:0; min-width:0; padding:.65rem; border:1px solid var(--border-input); border-radius:7px; background:var(--bg-input); color:var(--text-primary); font-size:.8rem; }
+.folder-search-row label { display:flex; gap:.35rem; align-items:center; font-size:.7rem; color:var(--text-muted); white-space:nowrap; }
+.folder-search-row input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent-primary); }
+.folder-picker .folder-list { min-height:100px; max-height:none; padding:0 .65rem .65rem; overflow-y:auto; overscroll-behavior:contain; }
+.folder-row { display:flex; align-items:center; width:100%; gap:.8rem; padding:.85rem .75rem; text-align:left; border:1px solid transparent; background:transparent; border-radius:8px; min-height:62px; }
+.folder-row:hover { background:var(--bg-hover); border-color:var(--border-subtle); }
+.folder-row .folder-icon { font-size:1.25rem; color:var(--text-link); }
+.folder-row-body { display:block; flex:1; min-width:0; }
+.folder-row-body strong { display:block; font-size:.83rem; font-weight:600; overflow-wrap:anywhere; }
+.folder-row-body small { display:block; color:var(--text-muted); font-size:.67rem; line-height:1.5; overflow-wrap:anywhere; margin-top:.2rem; }
+.folder-chevron { font-size:1.35rem; color:var(--text-muted); }
+.drive-capacity { display:block; height:5px; max-width:260px; background:var(--progress-track); border-radius:3px; margin-top:.5rem; overflow:hidden; }
+.drive-capacity>span { display:block; height:100%; background:var(--accent-primary); }
+.folder-list-count { padding:.5rem 1rem; border-top:1px solid var(--border-subtle); font-size:.66rem; color:var(--text-muted); }
+.folder-show-more { width:100%; margin-top:.5rem; min-height:44px; }
+.folder-picker .folder-footer { padding:.85rem 1rem; background:var(--bg-body); flex-shrink:0; }
+.folder-picker .folder-selected { min-width:0; white-space:normal; overflow-wrap:anywhere; color:var(--text-primary); }
+.folder-selected small { display:block; font-size:.57rem; letter-spacing:.1em; color:var(--text-muted); margin-bottom:.3rem; }
+.folder-selected strong { display:block; font-size:.75rem; font-weight:500; max-height:4rem; overflow:auto; }
+.folder-footer-actions { display:flex; gap:.5rem; flex-shrink:0; }
+.folder-footer-actions button { min-height:44px; }
+.folder-picker .folder-error { margin:0 .7rem .5rem; border-radius:6px; padding:.7rem; font-size:.75rem; }
+@media(max-width:640px) {
+    .folder-picker { inset:auto 0 0; transform:none; width:100%; height:94dvh; max-height:94dvh; border-radius:14px 14px 0 0; }
+    .folder-picker .folder-header { padding:.9rem; }
+    .folder-picker-content { display:flex; flex-direction:column; }
+    .folder-places { flex-direction:row; flex-shrink:0; overflow-x:auto; overflow-y:hidden; padding:.5rem .7rem; border-right:0; border-bottom:1px solid var(--border-subtle); }
+    .folder-places .eyebrow { display:none; }
+    .folder-places button { white-space:nowrap; min-width:max-content; background:var(--bg-surface); border:1px solid var(--border-subtle); }
+    .folder-main { flex:1; min-height:0; }
+    .folder-picker .folder-footer { display:flex; flex-direction:column; align-items:stretch; padding:.8rem .9rem max(.8rem,env(safe-area-inset-bottom)); }
+    .folder-footer-actions button { flex:1; }
+    .folder-picker .folder-selected { flex:none; margin-bottom:.5rem; }
+    .folder-picker .folder-list { min-height:80px; }
+    .folder-row { min-height:66px; }
+}
