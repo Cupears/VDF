@@ -424,6 +424,7 @@
 
 </fieldset>
 @code {
+    protected override void OnInitialized() => Scan.SyncSharedSettings();
     void RefreshSharedSettings() => StateHasChanged();
     Task SearchSettings(ChangeEventArgs e) => JS.InvokeVoidAsync("vdf.filterSettings", e.Value?.ToString() ?? "").AsTask();
     string? _saveMsg;

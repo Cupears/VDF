@@ -615,8 +615,10 @@ else {
 
     enum AutoSelectMode { LowestQuality, SmallestFile, Oldest, Newest, HundredPercentEqual }
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized() {
+        Scan.SyncSharedSettings();
         Scan.StateChanged += OnStateChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender) {
         try {

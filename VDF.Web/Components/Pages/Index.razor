@@ -179,6 +179,7 @@ else {
     bool _saveFailed;
 
     protected override void OnInitialized() {
+        Scan.SyncSharedSettings();
         Scan.StateChanged += OnStateChanged;
         FFmpegSetup.StateChanged += OnStateChanged;
     }
