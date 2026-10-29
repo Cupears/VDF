@@ -58,6 +58,7 @@
 </section>
 
 @code {
+    [Parameter] public long Revision { get; set; }
     string _drivePath = string.Empty, _driveType = "SSD", _theme = "system", _scale = "100";
     bool _reduceMotion;
     protected override async Task OnAfterRenderAsync(bool firstRender) {

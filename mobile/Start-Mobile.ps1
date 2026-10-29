@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $mobileFolder = $PSScriptRoot
+$env:VDF_SETTINGS_SYNC_PATH = Join-Path (Split-Path $mobileFolder -Parent) '.shared-scan-settings.json'
 $existing = Get-CimInstance Win32_Process -Filter "Name='VDF.Web.exe'" |
     Where-Object ExecutablePath -eq (Join-Path $mobileFolder 'VDF.Web.exe')
 if (-not $existing) {

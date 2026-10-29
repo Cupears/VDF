@@ -23,6 +23,7 @@ namespace VDF.Web.Services {
 	public sealed class WebSettingsService {
 		/// <summary>JSON-serializable mirror of the settings relevant to VDF.Web.</summary>
 		public sealed class Dto {
+			public VDF.Core.Utils.ScanPresetKnobs? CustomScanKnobs { get; set; }
 			public int HddMaxDegreeOfParallelism { get; set; } = 2;
 			public Dictionary<string, string> DriveTypeOverrides { get; set; } = new();
 			public float PHashRequiredMatchingSampleRatio { get; set; } = 0.6f;
@@ -98,6 +99,7 @@ namespace VDF.Web.Services {
 
 		/// <summary>WebUI-only settings that don't belong in VDF.Core.Settings.</summary>
 		public bool AutoLoadThumbnails { get; set; } = true;
+		public VDF.Core.Utils.ScanPresetKnobs? CustomScanKnobs { get; set; }
 		public int ThumbnailWidth { get; set; } = 480;
 		public int ThumbnailJpegQuality { get; set; } = 85;
 		public List<string> QualityCriteriaOrder { get; set; } = WebReviewRules.DefaultOrder.ToList();
@@ -131,6 +133,7 @@ namespace VDF.Web.Services {
 			try {
 				var dto = JsonSerializer.Deserialize(File.ReadAllText(SettingsPath), WebJsonContext.Default.Dto);
 				if (dto == null) return false;
+				CustomScanKnobs = dto.CustomScanKnobs;
 				s.HddMaxDegreeOfParallelism = Math.Clamp(dto.HddMaxDegreeOfParallelism, 1, 128);
 				s.DriveTypeOverrides = dto.DriveTypeOverrides ?? new();
 				s.PHashRequiredMatchingSampleRatio = Math.Clamp(dto.PHashRequiredMatchingSampleRatio, 0.01f, 1f);
@@ -208,6 +211,7 @@ namespace VDF.Web.Services {
 			try {
 				Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
 				var dto = new Dto {
+					CustomScanKnobs = CustomScanKnobs,
 					HddMaxDegreeOfParallelism = s.HddMaxDegreeOfParallelism,
 					DriveTypeOverrides = s.DriveTypeOverrides,
 					PHashRequiredMatchingSampleRatio = s.PHashRequiredMatchingSampleRatio,

@@ -1,0 +1,29 @@
+@implements IDisposable
+@inject ScanService Scan
+
+<div class="settings-sync-status" role="status"><span class="sync-dot @(Scan.SharedSettingsEnabled ? "enabled" : "")"></span>
+    <div><strong>@Scan.SettingsSyncStatus</strong>
+        @if (Scan.SharedSettingsEnabled) { <small>Folders, matching, filters, performance, and quality rules sync automatically. Active scans finish with their current settings.</small> }
+        else { <small>Start both apps using the fork's launchers to enable desktop sync.</small> }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnSynced { get; set; }
+    readonly CancellationTokenSource _stop = new();
+    protected override void OnInitialized() {
+        if (Scan.SharedSettingsEnabled) _ = Poll();
+    }
+    async Task Poll() {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try {
+            while (await timer.WaitForNextTickAsync(_stop.Token)) {
+                await InvokeAsync(async () => {
+                    if (Scan.SyncSharedSettings()) await OnSynced.InvokeAsync();
+                    StateHasChanged();
+                });
+            }
+        } catch (OperationCanceledException) { } catch (ObjectDisposedException) { }
+    }
+    public void Dispose() { _stop.Cancel(); _stop.Dispose(); }
+}

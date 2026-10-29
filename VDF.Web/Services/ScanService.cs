@@ -47,6 +47,10 @@ namespace VDF.Web.Services {
 	public sealed class ScanService : IDisposable {
 		readonly ScanEngine _engine = new();
 		readonly WebSettingsService _settingsService;
+		readonly SharedScanSettings? _sharedSettings;
+		public bool SharedSettingsEnabled => _sharedSettings != null;
+		public long SettingsRevision { get; private set; }
+		public string SettingsSyncStatus { get; private set; } = "Separate web settings";
 		CancellationTokenSource _cts = new();
 
 		public ScanState State { get; private set; } = ScanState.Idle;
@@ -70,9 +74,15 @@ namespace VDF.Web.Services {
 
 		public event Action? StateChanged;
 
-		public ScanService(WebSettingsService settingsService) {
+		public ScanService(WebSettingsService settingsService, SharedScanSettings? sharedSettings = null) {
 			_settingsService = settingsService;
 			settingsService.Load(_engine.Settings);
+			_sharedSettings = sharedSettings;
+			var syncPath = Environment.GetEnvironmentVariable(SharedScanSettings.EnvironmentKey);
+			if (_sharedSettings == null && !string.IsNullOrWhiteSpace(syncPath) && WebSettingsService.TestOverrideSettingsPath == null) {
+				_sharedSettings = new SharedScanSettings(syncPath);
+			}
+			if (_sharedSettings != null) SyncSharedSettings();
 
 			_engine.FilesEnumerated += (_, _) => Notify();
 			_engine.BuildingHashesDone += (_, _) => {
@@ -110,6 +120,7 @@ namespace VDF.Web.Services {
 
 		public async Task StartScanAndCompare() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;
+			SyncSharedSettings();
 			_cts = new CancellationTokenSource();
 			State = ScanState.Scanning;
 			ErrorMessage = null;
@@ -154,7 +165,21 @@ namespace VDF.Web.Services {
 			_cts.Cancel();
 		}
 
-		public bool SaveSettings() => _settingsService.Save(_engine.Settings);
+		public bool SyncSharedSettings() {
+			if (_sharedSettings == null) return false;
+			if (State is ScanState.Scanning or ScanState.Comparing) { SettingsSyncStatus = "Sync waits until this scan finishes"; return false; }
+			try {
+				bool changed = _sharedSettings.Synchronize(Settings, _settingsService.QualityCriteriaOrder, _settingsService.QualityCriteriaDisabled);
+				if (changed) { _settingsService.Save(Settings); SettingsRevision++; }
+				SettingsSyncStatus = "Scan settings synced with desktop";
+				return changed;
+			} catch (Exception ex) { SettingsSyncStatus = "Settings sync could not finish: " + ex.Message; return false; }
+		}
+
+		public bool SaveSettings() {
+			SyncSharedSettings();
+			return _settingsService.Save(_engine.Settings);
+		}
 
 		public void Reset() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;

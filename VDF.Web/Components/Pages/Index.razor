@@ -6,7 +6,11 @@
 
 <PageTitle>Scan — Video Duplicate Finder</PageTitle>
 
-<h1>Scan</h1>
+<div class="scan-page-heading"><div><span class="eyebrow">YOUR LIBRARY, WITHOUT THE COPIES</span><h1>Set up your scan</h1>
+    <p class="page-intro">Choose folders, pick what you want to find, then review the matches.</p></div>
+    <nav class="scan-steps" aria-label="Scan steps"><span class="@(Scan.State is ScanState.Scanning or ScanState.Comparing ? "" : "active")"><b>1</b> Set up</span><span class="@(Scan.State is ScanState.Scanning or ScanState.Comparing ? "active" : "")"><b>2</b> Scan</span><a href="/results"><b>3</b> Review</a></nav>
+</div>
+<SettingsSyncStatus OnSynced="RefreshSharedSettings" />
 
 @* FFmpeg setup banner *@
 @if (FFmpegSetup.State == FFmpegSetupState.Checking) {
@@ -50,6 +54,7 @@
 
 @if (Scan.State == ScanState.Scanning || Scan.State == ScanState.Comparing) {
     <div class="progress-section">
+        <span class="eyebrow">SCAN IN PROGRESS</span><h2>@(Scan.State == ScanState.Comparing ? "Finding matches" : "Reading and sampling files")</h2>
         @if (Scan.State == ScanState.Scanning) {
             <p class="state-label">Hashing files...</p>
             @if (Scan.LastProgress is { } p && p.Max > 0) {
@@ -57,7 +62,7 @@
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill" style="width:@pct%"></div>
                 </div>
-                <p>@p.Current / @p.Max &nbsp;|&nbsp; ETA @FormatEta(p.Remaining)</p>
+                <div class="scan-stat-grid"><div><small>Files processed</small><strong>@p.Current.ToString("N0") / @p.Max.ToString("N0")</strong></div><div><small>Elapsed</small><strong>@FormatEta(p.Elapsed)</strong></div><div><small>Time left</small><strong>@FormatEta(p.Remaining)</strong></div></div>
                 <p class="file-path">@TruncatePath(p.CurrentFile, 80)</p>
                 @if (!string.IsNullOrEmpty(p.CurrentStage)) {
                     <p class="stage-label">
@@ -81,26 +86,28 @@
     </div>
 }
 else {
-    <section class="scan-config">
-        <h2>Include paths</h2>
+    <div class="scan-setup-layout">
+    <section class="scan-config scan-folders">
+        <div class="page-heading"><div><span class="eyebrow">WHERE TO LOOK</span><h2>Folders to scan</h2></div><span class="folder-count">@Scan.Settings.IncludeList.Count folders</span></div>
+        <p class="section-help">Add folders from this PC. Browse opens the PC's folders, including available drives.</p>
         <div class="path-list">
             @foreach (var path in Scan.Settings.IncludeList.ToList()) {
                 bool valid = Directory.Exists(path);
                 <div class="path-entry">
                     <span class="path-status @(valid ? "valid" : "invalid")" title="@(valid ? "Accessible" : "Not found or not accessible")">@(valid ? "\u2713" : "\u2717")</span>
-                    <span>@path</span>
-                    <button @onclick="() => RemoveInclude(path)">&#x2715;</button>
+                    <span class="folder-path">@path<small>@(valid ? "Ready to scan" : "Folder is not available on this PC")</small></span>
+                    <button aria-label="@($"Remove {path}")" @onclick="() => RemoveInclude(path)">&#x2715;</button>
                 </div>
             }
         </div>
         <div class="add-path">
             <input @bind="_newInclude" @bind:event="oninput" @onkeydown="OnIncludeKeyDown"
-                   placeholder="/path/to/scan" class="@PathInputClass(_newInclude)" />
+                   aria-label="Folder to scan" placeholder="Folder path on your PC" class="@PathInputClass(_newInclude)" />
             <button @onclick="AddInclude" disabled="@string.IsNullOrWhiteSpace(_newInclude)">Add</button>
             <button class="browse-btn" @onclick="() => _includeBrowser?.Open()">Browse…</button>
         </div>
 
-        <h2>Exclude paths</h2>
+        <h3>Folders to skip</h3><p class="section-help">Keep these folders out of the scan.</p>
         <div class="path-list">
             @foreach (var path in Scan.Settings.BlackList.ToList()) {
                 bool valid = Directory.Exists(path);
@@ -113,13 +120,29 @@ else {
         </div>
         <div class="add-path">
             <input @bind="_newExclude" @bind:event="oninput" @onkeydown="OnExcludeKeyDown"
-                   placeholder="/path/to/exclude" />
+                   aria-label="Folder to skip" placeholder="Folder path to skip" />
             <button @onclick="AddExclude" disabled="@string.IsNullOrWhiteSpace(_newExclude)">Add</button>
             <button class="browse-btn" @onclick="() => _excludeBrowser?.Open()">Browse…</button>
         </div>
 
         <FolderBrowser @ref="_includeBrowser" OnFolderSelected="OnIncludeFolderSelected" />
         <FolderBrowser @ref="_excludeBrowser" OnFolderSelected="OnExcludeFolderSelected" />
+        <div class="scan-quick-options">
+            <label><input type="checkbox" @bind="Scan.Settings.IncludeSubDirectories" />Include subfolders</label>
+            <label><input type="checkbox" @bind="Scan.Settings.IncludeImages" />Include images alongside videos</label>
+        </div>
+    </section>
+    <aside class="scan-options">
+        <ScanPresetPicker Revision="Scan.SettingsRevision" Changed="RefreshSharedSettings" />
+        <section class="scan-ready">
+            <span class="eyebrow">READY WHEN YOU ARE</span><h2>Scan summary</h2>
+            <dl><div><dt>Folders</dt><dd>@Scan.Settings.IncludeList.Count included · @Scan.Settings.BlackList.Count skipped</dd></div>
+                <div><dt>Profile</dt><dd>@VDF.Core.Utils.ScanPresets.Detect(Scan.Settings)</dd></div>
+                <div><dt>Matching</dt><dd>@(Scan.Settings.CombineGrayscaleAndPHash ? "Grayscale + pHash" : Scan.Settings.UsePHashing ? "pHash" : "Grayscale") · @Scan.Settings.Percent% similarity</dd></div>
+                <div><dt>Frames per video</dt><dd>@Scan.Settings.ThumbnailCount</dd></div>
+                <div><dt>AI matching</dt><dd>@(Scan.Settings.NeedsAiComponents ? "On · runs on your PC" : "Off")</dd></div>
+                <div><dt>Slow disk limit</dt><dd>@Scan.Settings.HddMaxDegreeOfParallelism files at once</dd></div>
+            </dl><a href="/settings">Fine-tune settings →</a>
 
         <div class="start-row">
             @if (Scan.State == ScanState.Done || Scan.State == ScanState.Aborted || Scan.State == ScanState.Error) {
@@ -141,10 +164,13 @@ else {
         @if (Scan.State == ScanState.Aborted) {
             <p class="aborted-msg">Scan was stopped.</p>
         }
-    </section>
+        </section>
+    </aside>
+    </div>
 }
 
 @code {
+    void RefreshSharedSettings() => StateHasChanged();
     string _newInclude = string.Empty;
     string _newExclude = string.Empty;
     FolderBrowser? _includeBrowser;
@@ -218,7 +244,7 @@ else {
     }
 
     static string FormatEta(TimeSpan eta) =>
-        eta == TimeSpan.Zero ? "..." : eta.ToString(@"m\mss\s");
+        eta == TimeSpan.Zero ? "..." : eta.TotalHours >= 1 ? eta.ToString(@"h\hmm\mss\s") : eta.ToString(@"m\mss\s");
 
     static string TruncatePath(string path, int max) =>
         path.Length <= max ? path : "..." + path[^(max - 3)..];

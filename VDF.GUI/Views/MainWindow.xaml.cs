@@ -40,6 +40,8 @@ namespace VDF.GUI.Views {
 		bool keepBackupFile;
 		bool hasExited;
 		DispatcherTimer? settingsSaveDebounce;
+		DispatcherTimer? sharedSettingsTimer;
+		DesktopSettingsSync? sharedSettingsSync;
 
 		void RestartSettingsSaveDebounce() {
 			if (settingsSaveDebounce == null || hasExited) return;
@@ -51,6 +53,12 @@ namespace VDF.GUI.Views {
 		public MainWindow() {
 			//Settings must be load before XAML is parsed
 			SettingsFile.LoadSettingsAtStartup();
+			var sharedSettingsPath = Environment.GetEnvironmentVariable(VDF.Core.Utils.SharedScanSettings.EnvironmentKey);
+			if (!string.IsNullOrWhiteSpace(sharedSettingsPath)) {
+				sharedSettingsSync = new DesktopSettingsSync(sharedSettingsPath);
+				try { sharedSettingsSync.Synchronize(SettingsFile.Instance); }
+				catch (Exception ex) { Logger.Instance.Error($"Desktop settings sync failed: {ex.Message}"); }
+			}
 			App.Lang.CurrentLanguage = SettingsFile.Instance.LanguageCode;
 
 			InitializeComponent();
@@ -117,6 +125,15 @@ namespace VDF.GUI.Views {
 			SettingsFile.Instance.FilePathNotContainsTexts.CollectionChanged += (_, __) => RestartSettingsSaveDebounce();
 
 			ShowAlgoView();
+			if (sharedSettingsSync != null) {
+				sharedSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+				sharedSettingsTimer.Tick += (_, _) => {
+					if (hasExited || DataContext is not ViewModels.MainWindowVM vm || vm.IsScanning || vm.IsBusy) return;
+					try { if (sharedSettingsSync.Synchronize(SettingsFile.Instance)) SettingsFile.SaveSettings(); }
+					catch (Exception ex) { Logger.Instance.Error($"Desktop settings sync failed: {ex.Message}"); }
+				};
+				sharedSettingsTimer.Start();
+			}
 		}
 
 		async void ShowAlgoView() {
@@ -359,6 +376,7 @@ namespace VDF.GUI.Views {
 		void MainWindow_Exit(object? sender, ControlledApplicationLifetimeExitEventArgs e) {
 			if (hasExited) return;
 			hasExited = true;
+			sharedSettingsTimer?.Stop();
 			SettingsFile.SaveSettings();
 		}
 

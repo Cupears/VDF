@@ -8,7 +8,8 @@
 <PageTitle>Settings — Video Duplicate Finder</PageTitle>
 
 <h1>Settings</h1>
-<p class="page-intro">Choose how files are compared, ranked, and shown. These settings belong to the web session.</p>
+<p class="page-intro">Choose how files are compared, ranked, and shown. Scan options can sync with your desktop; appearance stays on this device.</p>
+<VDF.Web.Components.SettingsSyncStatus OnSynced="RefreshSharedSettings" />
 <nav class="settings-nav" aria-label="Settings sections" data-enhance-nav="false">
     <a href="/settings#desktop-settings">Performance</a><a href="/settings#quality">Quality rules</a><a href="/settings#view">Results view</a><a href="/settings#matching">Matching</a><a href="/settings#scanning">Scanning</a>
     <a href="/settings#filters">File filters</a><a href="/settings#ffmpeg">FFmpeg</a><a href="/settings#clips">Partial clips</a>
@@ -25,7 +26,7 @@
 
 <fieldset class="settings-fields" disabled="@(Scan.State is ScanState.Scanning or ScanState.Comparing)">
 @if (Scan.State is ScanState.Scanning or ScanState.Comparing) { <p role="status">Stop the running scan before changing its settings.</p> }
-<VDF.Web.Components.DesktopSettings />
+<VDF.Web.Components.DesktopSettings Revision="Scan.SettingsRevision" />
 <section class="settings-section" id="matching">
     <h2>Similarity</h2>
     <label>
@@ -423,6 +424,7 @@
 
 </fieldset>
 @code {
+    void RefreshSharedSettings() => StateHasChanged();
     Task SearchSettings(ChangeEventArgs e) => JS.InvokeVoidAsync("vdf.filterSettings", e.Value?.ToString() ?? "").AsTask();
     string? _saveMsg;
     bool _saveFailed;

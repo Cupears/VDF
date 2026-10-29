@@ -9,6 +9,7 @@
 
 <span class="eyebrow">REVIEW YOUR SCAN</span><h1>Duplicate Groups</h1>
 <p class="page-intro">Compare copies, choose what to keep, then review checked files before deleting.</p>
+<SettingsSyncStatus OnSynced="RefreshSharedSettings" />
 
 @{
     var allDuplicates = Scan.Duplicates;
@@ -551,6 +552,7 @@ else {
 }
 
 @code {
+    void RefreshSharedSettings() => StateHasChanged();
     int _page;
     bool _onlyAi, _onlyPartial, _hideSingleLive;
     string _groupOrder = "default";

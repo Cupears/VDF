@@ -1,0 +1,34 @@
+@inject ScanService Scan
+@inject WebSettingsService WebSettings
+@using VDF.Core.Utils
+
+<section class="scan-profile-panel" aria-labelledby="profiles-title">
+    <span class="eyebrow">WHAT DO YOU WANT TO FIND?</span><h2 id="profiles-title">Choose a scan profile</h2>
+    <p class="section-help">The same profiles as the desktop. Your folders, disk limits, and matching algorithm stay as you set them.</p>
+    <div class="scan-profile-list" role="radiogroup" aria-label="Scan profile">
+        @foreach (string name in ScanPresets.Names) {
+            <button type="button" class="scan-profile @(ScanPresets.Detect(Scan.Settings) == name ? "active" : "")" role="radio"
+                    aria-checked="@(ScanPresets.Detect(Scan.Settings) == name)" @onclick="() => Select(name)">
+                <span class="profile-radio" aria-hidden="true"></span><span><strong>@name</strong><small>@Description(name)</small></span>
+            </button>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public long Revision { get; set; }
+    [Parameter] public EventCallback Changed { get; set; }
+    async Task Select(string name) {
+        if (name != "Custom" && ScanPresets.Detect(Scan.Settings) == "Custom") WebSettings.CustomScanKnobs = ScanPresets.Capture(Scan.Settings);
+        ScanPresets.Apply(Scan.Settings, name, WebSettings.CustomScanKnobs);
+        Scan.SaveSettings();
+        await Changed.InvokeAsync();
+    }
+    static string Description(string name) => name switch {
+        "Exact & near copies" => "Copies, renamed files, and re-encoded videos. The quickest scan.",
+        "Edited & altered" => "Also looks for flips, watermarks, borders, and quality changes.",
+        "AI scan" => "Adds AI for edited copies and clips, including silent videos.",
+        "Deep clean" => "Adds audio clip matching too. Most thorough; slower on the first scan.",
+        _ => "Your own settings. Restores the custom values you used before choosing a profile."
+    };
+}
