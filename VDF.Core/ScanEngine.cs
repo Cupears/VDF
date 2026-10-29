@@ -2693,20 +2693,29 @@ namespace VDF.Core {
 			}
 		}
 
-		public async Task RetrieveThumbnailsForItems(IEnumerable<DuplicateItem> items, CancellationToken cancellationToken = default) {
+		public async Task RetrieveThumbnailsForItems(
+			IEnumerable<DuplicateItem> items,
+			CancellationToken cancellationToken = default,
+			int? maxDegreeOfParallelism = null,
+			bool logProgress = true) {
 			// Explicit reloads also refresh thumbnails whose extraction width is below the
 			// current setting (issue #777); the automatic post-scan pass does not.
 			int requiredWidth = Settings.ThumbnailMaxWidth > 0 ? Settings.ThumbnailMaxWidth : 100;
 			var dupList = items.Where(d => ShouldRetryThumbnails(d, NoThumbnailImage, requiredWidth)).ToList();
 			if (dupList.Count == 0) {
-				Logger.Instance.Info("Explicit thumbnail retry: nothing to do (all selected items already have up-to-date thumbnails).");
+				if (logProgress)
+					Logger.Instance.Info("Explicit thumbnail retry: nothing to do (all selected items already have up-to-date thumbnails).");
 				return;
 			}
 			EnsureThumbnailPositions();
-			Logger.Instance.Info($"Explicit thumbnail retry: starting for {dupList.Count} item(s).");
+			if (logProgress)
+				Logger.Instance.Info($"Explicit thumbnail retry: starting for {dupList.Count} item(s).");
 			int loaded = 0, placeholders = 0, skippedMissing = 0;
 			try {
-				await Parallel.ForEachAsync(dupList, new ParallelOptions { CancellationToken = cancellationToken, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, cancellationToken) => {
+				await Parallel.ForEachAsync(dupList, new ParallelOptions {
+					CancellationToken = cancellationToken,
+					MaxDegreeOfParallelism = maxDegreeOfParallelism ?? Settings.MaxDegreeOfParallelism
+				}, (entry, cancellationToken) => {
 					List<byte[]>? list = null;
 					bool needsThumbnails = !Settings.IncludeMissingFiles || File.Exists(entry.Path);
 					List<TimeSpan>? timeStamps = null;
@@ -2776,7 +2785,8 @@ namespace VDF.Core {
 				});
 			}
 			catch (OperationCanceledException) { }
-			Logger.Instance.Info($"Explicit thumbnail retry complete: {loaded} fully loaded, {placeholders} placeholder, {skippedMissing} skipped (missing on disk).");
+			if (logProgress)
+				Logger.Instance.Info($"Explicit thumbnail retry complete: {loaded} fully loaded, {placeholders} placeholder, {skippedMissing} skipped (missing on disk).");
 		}
 		public async void RetrieveThumbnails() {
 			var dupList = Duplicates.Where(d => ShouldRetryThumbnails(d, NoThumbnailImage)).ToList();

@@ -1035,7 +1035,16 @@ namespace VDF.GUI.ViewModels {
 							}
 						}
 					}
-					File.Move(tmp, path, overwrite: true);
+					// A backup can be written while the user is working through a large
+					// result set. Replacing the destination via Move(overwrite) may leave
+					// no valid backup if the process is stopped at precisely the wrong
+					// instant. File.Replace is an atomic same-volume swap on Windows: the
+					// prior valid backup remains intact until the completed temp archive is
+					// ready to take its place.
+					if (File.Exists(path))
+						File.Replace(tmp, path, destinationBackupFileName: null, ignoreMetadataErrors: true);
+					else
+						File.Move(tmp, path);
 				});
 			}
 			catch (Exception ex) {
@@ -1153,27 +1162,19 @@ namespace VDF.GUI.ViewModels {
 		}
 
 		/// <summary>
-		/// After restoring a saved scan that was interrupted before all thumbnails loaded, offer
-		/// to generate the missing previews in one pass instead of leaving rows blank (issue #775).
+		/// After restoring a saved scan, put missing previews into the passive thumbnail queue.
+		/// The results view already begins this queue while it is built; this keeps the import
+		/// path from starting a second, unrestricted thumbnail job.
 		/// </summary>
-		async Task PromptLoadMissingThumbnails() {
+		Task PromptLoadMissingThumbnails() {
 			var missing = Duplicates.Where(IsThumbnailMissing).ToList();
-			if (missing.Count == 0) return;
+			if (missing.Count == 0) return Task.CompletedTask;
 
-			MessageBoxButtons? result = await MessageBoxService.Show(
-				string.Format(App.Lang["Message.LoadMissingThumbnailsPrompt"], missing.Count),
-				MessageBoxButtons.Yes | MessageBoxButtons.No);
-			if (result != MessageBoxButtons.Yes) return;
-
-			IsBusy = true;
-			IsBusyOverlayText = App.Lang["Busy.LoadMissingThumbnails"];
-			try {
-				SyncCoreSettings();
-				await Scanner.RetrieveThumbnailsForItems(missing.Select(d => d.ItemInfo));
-			}
-			finally {
-				IsBusy = false;
-			}
+			// QueueAllResultThumbnails normally has already queued these. Calling this
+			// again is safe and picks up anything added while the import was finishing.
+			EnqueuePassiveThumbnails(missing, visible: false);
+			Logger.Instance.Info($"Passive thumbnail queue: {missing.Count:N0} missing item(s) queued after import.");
+			return Task.CompletedTask;
 		}
 
 		public ReactiveCommand<DuplicateItemVM, Unit> OpenItemCommand => ReactiveCommand.Create<DuplicateItemVM>(currentItem => {
@@ -1693,8 +1694,6 @@ Non-Windows setup:
 			Scanner.Settings.UseNativeFfmpegBinding = SettingsFile.Instance.UseNativeFfmpegBinding;
 			Scanner.Settings.IgnoreBlackPixels = SettingsFile.Instance.IgnoreBlackPixels;
 			Scanner.Settings.IgnoreWhitePixels = SettingsFile.Instance.IgnoreWhitePixels;
-			Scanner.Settings.IgnoreBlackThreshold = SettingsFile.Instance.IgnoreBlackThreshold;
-			Scanner.Settings.IgnoreWhiteThreshold = SettingsFile.Instance.IgnoreWhiteThreshold;
 			Scanner.Settings.CompareHorizontallyFlipped = SettingsFile.Instance.CompareHorizontallyFlipped;
 			Scanner.Settings.CustomDatabaseFolder = SettingsFile.Instance.CustomDatabaseFolder;
 			Scanner.Settings.DatabaseCheckpointIntervalMinutes = SettingsFile.Instance.DatabaseCheckpointIntervalMinutes;

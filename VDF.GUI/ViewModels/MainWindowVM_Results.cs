@@ -63,47 +63,121 @@ namespace VDF.GUI.ViewModels {
 		// disks), the view reports the currently visible DuplicateItemVMs and we extract
 		// only for those — plus a prefetch window — as they scroll into view. The disk
 		// ThumbPack caches each result, so re-viewing a file is cheap.
-		/// <summary>DuplicateItemVMs already handed to the thumbnail extractor (avoids re-requesting on every scroll tick).</summary>
-		readonly HashSet<DuplicateItemVM> thumbnailRequestedItems = new();
-		/// <summary>In-flight lazy thumbnail extraction; cancelled when the visible set moves on.</summary>
-		CancellationTokenSource? lazyThumbnailCts;
+		/// <summary>Items already queued for this results session (prevents duplicate decoding).</summary>
+		readonly HashSet<DuplicateItemVM> thumbnailQueuedItems = new();
+		/// <summary>Items that have had one passive decode attempt in this results session.</summary>
+		readonly HashSet<DuplicateItemVM> thumbnailProcessedItems = new();
+		/// <summary>Visible items awaiting their priority turn; separate from the background queue so they can be promoted.</summary>
+		readonly HashSet<DuplicateItemVM> visibleThumbnailPendingItems = new();
+		readonly Queue<DuplicateItemVM> visibleThumbnailQueue = new();
+		readonly Queue<DuplicateItemVM> backgroundThumbnailQueue = new();
+		readonly object thumbnailQueueGate = new();
+		CancellationTokenSource? thumbnailQueueCts;
+		Task? thumbnailQueueWorker;
+		const int VisibleThumbnailBatchSize = 2;
+		static readonly TimeSpan VisibleThumbnailPause = TimeSpan.FromMilliseconds(75);
+		static readonly TimeSpan BackgroundThumbnailPause = TimeSpan.FromMilliseconds(650);
 
 		/// <summary>
 		/// Called by the view whenever the set of realized (viewport + prefetch) result rows
-		/// changes. Requests thumbnail extraction only for rows not yet requested, canceling
-		/// any in-flight batch so a long scroll jump doesn't keep churning old rows.
+		/// changes. Visible rows are placed ahead of the passive all-results queue; scrolling
+		/// never cancels active decoding or restarts work.
 		/// </summary>
 		internal void OnResultsVisibleItemsChanged(List<DuplicateItemVM> visibleItems) {
 			if (!SettingsFile.Instance.GeneratePreviewThumbnails) return;
-			List<DuplicateItemVM> toLoad = new();
-			foreach (var item in visibleItems)
-				if (thumbnailRequestedItems.Add(item))
-					toLoad.Add(item);
-			if (toLoad.Count == 0) return;
-
-			lazyThumbnailCts?.Cancel();
-			var cts = new CancellationTokenSource();
-			lazyThumbnailCts = cts;
-			var token = cts.Token;
-			_ = RetrieveVisibleThumbnailsAsync(toLoad, token);
+			EnqueuePassiveThumbnails(visibleItems, visible: true);
 		}
 
-		async Task RetrieveVisibleThumbnailsAsync(List<DuplicateItemVM> toLoad, CancellationToken token) {
+		/// <summary>Queues every result at passive priority, while visible rows stay first.</summary>
+		internal void QueueAllResultThumbnails() {
+			if (!SettingsFile.Instance.GeneratePreviewThumbnails) return;
+			EnqueuePassiveThumbnails(Duplicates, visible: false);
+		}
+
+		void EnqueuePassiveThumbnails(IEnumerable<DuplicateItemVM> items, bool visible) {
+			bool startWorker = false;
+			lock (thumbnailQueueGate) {
+				var destination = visible ? visibleThumbnailQueue : backgroundThumbnailQueue;
+				foreach (var item in items) {
+					if (thumbnailProcessedItems.Contains(item)) continue;
+					if (visible) {
+						// An item can already be waiting far back in the all-results
+						// queue. Add a priority entry instead of making the viewport
+						// wait for every older item to finish.
+						if (visibleThumbnailPendingItems.Add(item))
+							destination.Enqueue(item);
+					}
+					else if (thumbnailQueuedItems.Add(item))
+						destination.Enqueue(item);
+				}
+				if (thumbnailQueueWorker == null || thumbnailQueueWorker.IsCompleted) {
+					thumbnailQueueCts?.Dispose();
+					thumbnailQueueCts = new CancellationTokenSource();
+					startWorker = true;
+				}
+			}
+			if (startWorker) {
+				thumbnailQueueWorker = ProcessPassiveThumbnailQueueAsync(thumbnailQueueCts!.Token);
+			}
+		}
+
+		async Task ProcessPassiveThumbnailQueueAsync(CancellationToken token) {
 			try {
-				SyncCoreSettings();
-				var infos = toLoad.Select(d => d.ItemInfo).ToList();
-				await Scanner.RetrieveThumbnailsForItems(infos, token);
+				while (!token.IsCancellationRequested) {
+					var batch = new List<DuplicateItemVM>(VisibleThumbnailBatchSize);
+					bool hasVisibleWork;
+					lock (thumbnailQueueGate) {
+						while (batch.Count < VisibleThumbnailBatchSize && visibleThumbnailQueue.Count > 0) {
+							var item = visibleThumbnailQueue.Dequeue();
+							visibleThumbnailPendingItems.Remove(item);
+							if (!thumbnailProcessedItems.Contains(item)) batch.Add(item);
+						}
+						hasVisibleWork = batch.Count > 0;
+						// Background work is deliberately one file at a time. It must never
+						// make browsing lag just because an old result set is huge.
+						while (!hasVisibleWork && batch.Count < 1 && backgroundThumbnailQueue.Count > 0) {
+							var item = backgroundThumbnailQueue.Dequeue();
+							if (!thumbnailProcessedItems.Contains(item)) batch.Add(item);
+						}
+					}
+					if (batch.Count == 0) return;
+
+					// Do not call SyncCoreSettings here. It clears and repopulates the
+					// scanner's include/blacklist sets; doing that from the background
+					// thumbnail worker can race BuildFileList during a new scan.
+					// Scan start already synchronizes these settings, and thumbnail
+					// generation only reads the existing scanner configuration.
+					// The saved results can include files that were moved since the
+					// scan. Avoid spawning FFmpeg and flooding the UI log for each one.
+					var existing = batch.Where(d => System.IO.File.Exists(d.ItemInfo.Path)).ToList();
+					if (existing.Count > 0)
+						await Scanner.RetrieveThumbnailsForItems(
+							existing.Select(d => d.ItemInfo),
+							token,
+							maxDegreeOfParallelism: hasVisibleWork ? 2 : 1,
+							logProgress: false);
+					lock (thumbnailQueueGate)
+						foreach (var item in batch)
+							thumbnailProcessedItems.Add(item);
+					await Task.Delay(hasVisibleWork ? VisibleThumbnailPause : BackgroundThumbnailPause, token);
+				}
 			}
 			catch (OperationCanceledException) { }
 			catch (Exception ex) {
-				Logger.Instance.Error($"Lazy thumbnail load failed: {ex.Message}");
+				Logger.Instance.Error($"Passive thumbnail queue failed: {ex.Message}");
 			}
 		}
 
 		/// <summary>Resets the lazy loader's memory (new scan: prior requested set is stale).</summary>
 		internal void ResetLazyThumbnailState() {
-			lazyThumbnailCts?.Cancel();
-			thumbnailRequestedItems.Clear();
+			thumbnailQueueCts?.Cancel();
+			lock (thumbnailQueueGate) {
+				thumbnailQueuedItems.Clear();
+				thumbnailProcessedItems.Clear();
+				visibleThumbnailPendingItems.Clear();
+				visibleThumbnailQueue.Clear();
+				backgroundThumbnailQueue.Clear();
+			}
 		}
 
 		public ResultsSortOption[] ResultsSortOptions { get; } = {
@@ -207,6 +281,7 @@ namespace VDF.GUI.ViewModels {
 		/// <summary>Builds the results list from scratch (scan done, import).</summary>
 		void BuildActiveResultsView(bool resetSessionStats = true) {
 			RebuildResultsList();
+			QueueAllResultThumbnails();
 			if (resetSessionStats)
 				TotalSizeRemovedInternal = 0;
 		}

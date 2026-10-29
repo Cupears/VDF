@@ -217,12 +217,18 @@ namespace VDF.GUI.Views {
 		// the user scrolls, newly-realized rows get requested in turn. Debounced so a long
 		// scroll doesn't fire a request per frame.
 		Avalonia.Threading.DispatcherTimer? visibleThumbnailsTimer;
-		const int ThumbnailPrefetchRows = 12;
+		// Small preview tiles fit many more rows on screen, so expand the warm
+		// buffer as they shrink. Normal previews keep roughly a dozen rows ready;
+		// small previews receive two or more screenfuls without unbounded work.
+		int ThumbnailPrefetchRows => Math.Clamp(
+			(int)Math.Ceiling(2400d / Math.Max(60d, SettingsFile.Instance.ResultsPreviewWidth)),
+			12,
+			36);
 
 		void RefreshVisibleThumbnailsDebounced() {
 			if (visibleThumbnailsTimer == null) {
 				visibleThumbnailsTimer = new Avalonia.Threading.DispatcherTimer {
-					Interval = TimeSpan.FromMilliseconds(60)
+					Interval = TimeSpan.FromMilliseconds(180)
 				};
 				visibleThumbnailsTimer.Tick += (_, _) => {
 					visibleThumbnailsTimer.Stop();
