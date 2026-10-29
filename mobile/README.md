@@ -1,6 +1,8 @@
 # Cupears VDF mobile
 
-This folder holds the web app built from this fork's VDF.Web project.
+This folder holds the phone's web assets and launcher. The native desktop loads
+the web server code from its own application folder; a separate mobile executable
+and duplicate FFmpeg/AI files are not needed here.
 Run Start-Mobile.ps1 to start it and connect the Tailscale phone link.
 For double-click launching, use Start VDF Mobile.cmd in the repository root.
 Start VDF.cmd opens the native desktop GUI. These launch PowerShell directly, so
