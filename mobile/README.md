@@ -2,6 +2,9 @@
 
 This folder holds the web app built from this fork's VDF.Web project.
 Run Start-Mobile.ps1 to start it and connect the Tailscale phone link.
+For double-click launching, use Start VDF Mobile.cmd in the repository root.
+Start VDF.cmd opens the desktop browser. These launch PowerShell directly, so
+Windows does not need to associate .ps1 files with PowerShell.
 
 The launcher shows the phone address. Tailscale must be on on both devices.
 The desktop shortcut VDF Mobile starts this launcher.
