@@ -48,6 +48,19 @@ public sealed class SettingsPageTests : BunitContext {
 	IRenderedComponent<VDF.Web.Components.Pages.Settings> RenderPage() =>
 		Render<VDF.Web.Components.Pages.Settings>();
 
+	[Fact]
+	public void SectionLinks_StayOnSettingsDespiteTheRootBaseUrl() {
+		var page = RenderPage();
+		var links = page.FindAll(".settings-nav a");
+		Assert.Equal(12, links.Count);
+		var baseUri = new Uri("http://localhost/");
+		foreach (var link in links) {
+			var target = new Uri(baseUri, link.GetAttribute("href")!);
+			Assert.Equal("/settings", target.AbsolutePath);
+			Assert.Single(page.FindAll(target.Fragment));
+		}
+	}
+
 	[Theory]
 	[InlineData("-5", 1)]
 	[InlineData("999", 128)]
