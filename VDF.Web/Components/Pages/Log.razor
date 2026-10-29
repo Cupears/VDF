@@ -1,0 +1,45 @@
+@page "/log"
+@rendermode InteractiveServer
+@implements IDisposable
+@using VDF.Core.Utils
+
+<PageTitle>Live log — Video Duplicate Finder</PageTitle>
+<h1>Live activity log</h1>
+<p>These are the same messages shown in the desktop Log tab. Long tasks report activity every 10 seconds. A warning after 30 seconds without reported progress is a clue to check, not proof of a frozen scan.</p>
+<div class="actions">
+    <button @onclick="() => _live = !_live">@(_live ? "Pause live updates" : "Resume live updates")</button>
+    <select aria-label="Log severity" @bind="_severity"><option value="all">All messages</option><option value="warning">Warnings and errors</option><option value="error">Errors only</option></select>
+    <input type="search" aria-label="Search log messages" placeholder="Search a folder, file, or message" @bind="_search" @bind:event="oninput" />
+</div>
+<p>@(_live ? "Updating every second" : "Live updates paused") · newest first · showing up to 500 matches from the latest 2,000 messages. Use the desktop Log tab to save the full log.</p>
+<div class="activity-log" aria-live="off">
+@foreach (var entry in VisibleEntries()) {
+    <article class="activity-log-entry @(entry.Severity.ToString().ToLowerInvariant())">
+        <small>@entry.Timestamp.ToString("HH:mm:ss") · @entry.Severity</small>
+        <p>@entry.Message</p>
+    </article>
+}
+@if (_entries.Length == 0) { <p>No activity messages yet. Messages will appear here when VDF does work.</p> }
+</div>
+
+@code {
+    readonly CancellationTokenSource _stop = new();
+    LogEntry[] _entries = Array.Empty<LogEntry>();
+    string _search = "", _severity = "all";
+    bool _live = true;
+    protected override void OnInitialized() { _entries = Logger.Instance.RecentEntries; _ = RefreshLoop(); }
+    IEnumerable<LogEntry> VisibleEntries() => _entries.Reverse().Where(e =>
+        (_severity == "all" || (_severity == "error" ? e.Severity == LogSeverity.Error : e.Severity != LogSeverity.Info)) &&
+        (string.IsNullOrWhiteSpace(_search) || e.Message.Contains(_search, StringComparison.OrdinalIgnoreCase))).Take(500);
+    async Task RefreshLoop() {
+        var token = _stop.Token;
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try {
+            while (await timer.WaitForNextTickAsync(token)) {
+                if (_live) await InvokeAsync(() => { _entries = Logger.Instance.RecentEntries; StateHasChanged(); });
+            }
+        } catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
+    public void Dispose() { _stop.Cancel(); _stop.Dispose(); }
+}

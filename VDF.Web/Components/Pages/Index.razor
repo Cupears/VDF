@@ -58,29 +58,27 @@
 @if (Scan.State == ScanState.Scanning || Scan.State == ScanState.Comparing) {
     <div class="progress-section">
         <span class="eyebrow">SCAN IN PROGRESS</span><h2>@(Scan.State == ScanState.Comparing ? "Finding matches" : "Reading and sampling files")</h2>
-        @if (Scan.State == ScanState.Scanning) {
-            <p class="state-label">Hashing files...</p>
-            @if (Scan.LastProgress is { } p && p.Max > 0) {
-                int pct = (int)(100L * p.Current / p.Max);
+        @if (Scan.LastProgress is { } p) {
+            <p class="state-label">@p.CurrentStage</p>
+            @if (p.Max > 0) {
+                int pct = (int)Math.Clamp(100L * p.Current / p.Max, 0, 100);
                 <div class="progress-bar-track">
                     <div class="progress-bar-fill" style="width:@pct%"></div>
                 </div>
-                <div class="scan-stat-grid"><div><small>Files processed</small><strong>@p.Current.ToString("N0") / @p.Max.ToString("N0")</strong></div><div><small>Elapsed</small><strong>@FormatEta(p.Elapsed)</strong></div><div><small>Time left</small><strong>@FormatEta(p.Remaining)</strong></div></div>
-                <p class="file-path">@TruncatePath(p.CurrentFile, 80)</p>
-                @if (!string.IsNullOrEmpty(p.CurrentStage)) {
-                    <p class="stage-label">
-                        @p.CurrentStage@(p.StageMax > 0 ? $" ({p.StageCurrent}/{p.StageMax})" : "")
-                    </p>
-                }
             }
+            else { <p>Total not known yet — still listing or preparing files.</p> }
+            <div class="scan-stat-grid"><div><small>Items / files found</small><strong>@p.Current.ToString("N0")@(p.Max > 0 ? $" / {p.Max:N0}" : " · still counting")</strong></div><div><small>Elapsed</small><strong>@FormatEta(p.Elapsed)</strong></div><div><small>Time left</small><strong>@(p.Remaining > TimeSpan.Zero ? FormatEta(p.Remaining) : "Not known yet")</strong></div></div>
+            <p class="file-path" title="@p.CurrentFile">@p.CurrentFile</p>
+            @if (p.StageMax > 0) { <p class="stage-label">Current task: @p.StageCurrent / @p.StageMax</p> }
         }
         else {
             <p class="state-label">
                 <span class="spinner"></span>
-                Comparing @(Scan.FilesHashed > 0 ? $"{Scan.FilesHashed:N0} hashed files" : "files") for duplicates...
+                Preparing the scan. Waiting for the first activity update...
             </p>
             <p class="comparing-note">This may take a while depending on library size.</p>
         }
+        <p><a href="/log">Open live activity log</a> — folder names, current work, and quiet-progress warnings.</p>
         <div class="actions">
             <button @onclick="Scan.Pause">Pause</button>
             <button @onclick="Scan.Resume">Resume</button>

@@ -45,6 +45,7 @@
           CornerRadius="5"
           AutomationProperties.Name="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Title]}"
           Maximum="{Binding ScanProgressMaxValue, Mode=OneWay}"
+          IsIndeterminate="{Binding ScanProgressTotalUnknown}"
           Value="{Binding ScanProgressValue, Mode=OneWay}" />
 
       <!-- elapsed + current file (mockup .scanmeta) -->
@@ -56,6 +57,7 @@
         <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextFaintOpacity}" MaxWidth="520"
                    FontFamily="Cascadia Mono,Consolas,monospace"
                    TextTrimming="PrefixCharacterEllipsis"
+                   ToolTip.Tip="{Binding ScanCurrentFile}"
                    Text="{Binding ScanCurrentFile}" />
       </StackPanel>
 
@@ -147,6 +149,11 @@
             VerticalAlignment="Top"
             BorderBrush="{actipro:ThemeResource Container3BorderBrush}"
             BorderThickness="0,1,0,0">
+      <StackPanel Spacing="8">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="Open full log" Command="{Binding ShowShellViewCommand}" CommandParameter="Log" />
+        <TextBlock VerticalAlignment="Center" Text="Live activity · long tasks report every 10 seconds" TextWrapping="Wrap" />
+      </DockPanel>
       <ItemsControl ItemsSource="{Binding LogTail}"
                     AutomationProperties.Name="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Tab.Log]}">
         <ItemsControl.ItemTemplate>
@@ -160,6 +167,7 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      </StackPanel>
     </Border>
   </Grid>
 </UserControl>

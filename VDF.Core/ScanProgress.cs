@@ -70,12 +70,13 @@ namespace VDF.Core {
 			Progress?.Invoke(this, snapshot);
 		}
 
-		public void Update(Func<ScanProgressSnapshot, ScanProgressSnapshot> snapshotUpdate, bool ignoreInterval = false) {
-			if (!ignoreInterval && lastUpdate + updateInterval > DateTime.UtcNow) {
+		public void Update(Func<ScanProgressSnapshot, ScanProgressSnapshot> snapshotUpdate, bool ignoreInterval = false, bool keepLatestWhenThrottled = false) {
+			bool publish = ignoreInterval || lastUpdate + updateInterval <= DateTime.UtcNow;
+			if (!publish && !keepLatestWhenThrottled) {
 				return;
 			}
 
-			lastUpdate = DateTime.UtcNow;
+			if (publish) lastUpdate = DateTime.UtcNow;
 
 			ScanProgressSnapshot original, updated;
 			do {
@@ -83,7 +84,7 @@ namespace VDF.Core {
 				updated = snapshotUpdate(original);
 			} while (!ReferenceEquals(Interlocked.CompareExchange(ref snapshot, updated, original), original));
 
-			Progress?.Invoke(this, updated);
+			if (publish) Progress?.Invoke(this, updated);
 		}
 
 		public void Heartbeat(Func<ScanProgressSnapshot, ScanProgressSnapshot> project) {

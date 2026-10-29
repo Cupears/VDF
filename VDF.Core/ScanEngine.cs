@@ -66,10 +66,12 @@ namespace VDF.Core {
 		// the compare snapshots are built — embeddings only occupy memory while needed.
 		internal AI.UnionEmbeddingStore? unionEmbeddingStore;
 
-		public ScanEngine() =>
+		public ScanEngine() {
+			progress.Progress += (_, snapshot) => activityLog.Observe(snapshot);
 			// Armed and disarmed by the isScanning setter, so an idle engine owns no ticking timer.
 			progressHeartbeat = new Timer(_ => HeartbeatTick(), null,
 											Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+		}
 
 		// The main process yields CPU to foreground apps while a scan runs, restored the
 		// instant scanning ends — hooked on the setter so EVERY exit path (done/abort/stop
@@ -85,6 +87,7 @@ namespace VDF.Core {
 					value ? progressHeartbeatIntervall : Timeout.InfiniteTimeSpan);
 				if (!value) {
 					progress.ResetWithoutPublish();
+					activityLog.Reset();
 				}
 				try {
 					using var p = Process.GetCurrentProcess();
@@ -100,6 +103,7 @@ namespace VDF.Core {
 		int processedFiles;
 		DateTime startTime = DateTime.Now;
 		readonly ScanProgress progress = new(TimeSpan.FromMilliseconds(300));
+		readonly ScanActivityLog activityLog = new();
 		// Elapsed and Remaining only ever reach a frontend on a Progress event, and a phase can
 		// run for minutes without completing a single file — the partial-clip visual gate decodes
 		// frames for a handful of assignments, one slow source stalling the counter. The whole
@@ -129,6 +133,7 @@ namespace VDF.Core {
 			LanguageService.Instance.Get(Settings.LanguageCode, key, args);
 
 		internal void InitProgress(int count, string stage) {
+			Logger.Instance.Info($"Stage started: {stage}; " + (count > 0 ? $"{count:N0} items." : "total not known yet."));
 			startTime = DateTime.UtcNow;
 			scanProgressMaxValue = count;
 			processedFiles = 0;
@@ -251,6 +256,10 @@ namespace VDF.Core {
 		/// </summary>
 		internal void EmitProgressHeartbeat() {
 			if (!ElapsedTimer.IsRunning) return; // a late tick must not repaint a finished scan
+			if (activityLog.Tick() is { } activity) {
+				if (activity.Quiet) Logger.Instance.Warn(activity.Message);
+				else Logger.Instance.Info(activity.Message);
+			}
 			progress.Heartbeat(p => p with {
 				Elapsed = ElapsedTimer.Elapsed,
 				Remaining = EstimateRemaining(p.CurrentPosition, p.MaxPosition),
@@ -261,7 +270,7 @@ namespace VDF.Core {
 		// mid-processing without advancing the file counter.
 		// Throttled to the same cadence for both so a stuck file's last-reported
 		// stage (e.g. "sampling frame 2/5") hints at where it froze.
-		internal void ReportProgress(string path, string stage, int stageCurrent = 0, int stageMax = 0, bool ignoreInterval = false) {
+		internal void ReportProgress(string path, string stage, int stageCurrent = 0, int stageMax = 0, bool ignoreInterval = false, bool allowCheckpoint = true, bool keepLatestWhenThrottled = false) {
 			progress.Update(p => p with {
 				CurrentPosition = processedFiles,
 				CurrentFile = path,
@@ -271,9 +280,9 @@ namespace VDF.Core {
 				StageCurrent = stageCurrent,
 				StageMax = stageMax,
 				Drives = driveProgressTracker?.Snapshot(),
-			}, ignoreInterval);
+			}, ignoreInterval, keepLatestWhenThrottled: scanProgressMaxValue == 0 || keepLatestWhenThrottled);
 
-			TryDatabaseCheckpoint();
+			if (allowCheckpoint) TryDatabaseCheckpoint();
 		}
 
 		internal void IncrementProgress(string path) {
@@ -376,6 +385,7 @@ namespace VDF.Core {
 				// Under checkpointLock: a pause-flush runs on a background task and could
 				// otherwise still be writing the temp database file when a quick Stop lets
 				// the scan reach this save (#803-style race).
+				ReportProgress(DatabaseUtils.GetDatabaseFolderPath(), "Saving scanned file database", ignoreInterval: true, allowCheckpoint: false);
 				lock (checkpointLock)
 					DatabaseUtils.SaveDatabase();
 				BuildingHashesDone?.Invoke(this, new EventArgs());
@@ -425,14 +435,16 @@ namespace VDF.Core {
 					return;
 				}
 				SearchTimer.Stop();
-				ElapsedTimer.Stop();
 				Logger.Instance.Info(T("Log.FinishedScanForDuplicates", SearchTimer.Elapsed));
 				LogGroupStatistics();
 				Logger.Instance.Info(T("Log.HighlightingBestResults"));
+				ReportProgress("", "Picking best copies in duplicate groups", ignoreInterval: true, allowCheckpoint: false);
 				HighlightBestMatches();
 				// Save before signaling completion — see the matching comments in StartSearch.
+				ReportProgress(DatabaseUtils.GetDatabaseFolderPath(), "Saving scan results to database", ignoreInterval: true, allowCheckpoint: false);
 				lock (checkpointLock)
 					DatabaseUtils.SaveDatabase();
+				ElapsedTimer.Stop();
 				isScanning = false;
 				ScanDone?.Invoke(this, new EventArgs());
 				Logger.Instance.Info(T("Log.ScanDone"));
@@ -686,6 +698,7 @@ namespace VDF.Core {
 
 		Task BuildFileList(CancellationToken cancellationToken) => Task.Run(() => {
 
+			InitProgress(0, "Loading saved scan database");
 			DatabaseUtils.LoadDatabase();
 			QuarantineCrashSuspects();
 			if (DatabaseUtils.DbVersion < 2) {
@@ -696,6 +709,8 @@ namespace VDF.Core {
 			}
 
 			int oldFileCount = DatabaseUtils.Database.Count;
+			InitProgress(oldFileCount, "Indexing saved file fingerprints");
+			Logger.Instance.Info($"Indexing {oldFileCount:N0} saved entries before listing folders.");
 
 			// Index existing analysed entries by size so a path-miss below can be checked for being a
 			// MOVE (same content fingerprint, old path now gone) and relinked — reusing its analysis
@@ -703,15 +718,20 @@ namespace VDF.Core {
 			// we compute the new file's oshash only when a same-size analysed entry exists (zero reads
 			// on a fresh scan, where the DB is empty).
 			var relinkBySize = new Dictionary<long, List<FileEntry>>();
-			foreach (var e in DatabaseUtils.Database)
+			foreach (var e in DatabaseUtils.Database) {
+				if (cancellationToken.IsCancellationRequested) return;
+				if ((++processedFiles & 4095) == 0) ReportProgress("", currentStageLabel, allowCheckpoint: false);
 				if (e.OsHash != null) {
 					if (!relinkBySize.TryGetValue(e.FileSize, out var lst))
 						relinkBySize[e.FileSize] = lst = new List<FileEntry>();
 					lst.Add(e);
 				}
+			}
 			int relinkedCount = 0;
 
 			foreach (string path in Settings.IncludeList) {
+				InitProgress(0, "Listing folders and finding media files");
+				Logger.Instance.Info($"Listing scan folder: {path} (subfolders: {Settings.IncludeSubDirectories}, images: {Settings.IncludeImages}).");
 				if (cancellationToken.IsCancellationRequested)
 					return;
 				if (!Directory.Exists(path)) {
@@ -721,11 +741,20 @@ namespace VDF.Core {
 					continue;
 				}
 
-				foreach (FileInfo file in FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
-					Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken)) {
+				var discovered = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
+					Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken,
+					(folder, directories, files, entries) => {
+						processedFiles = files;
+						ReportProgress(folder, $"Listing folders: {directories:N0} visited, {entries:N0} entries checked, {files:N0} media files found", allowCheckpoint: false);
+					});
+				Logger.Instance.Info($"Folder listing {(cancellationToken.IsCancellationRequested ? "stopped" : "finished")}: {path}; {discovered.Count:N0} media files found.");
+				if (cancellationToken.IsCancellationRequested) return;
+				InitProgress(discovered.Count, "Checking discovered files against saved database");
+				foreach (FileInfo file in discovered) {
 					if (cancellationToken.IsCancellationRequested)
 						return;
 					FileEntry fEntry;
+					ReportProgress(file.FullName, "Checking file timestamps and saved fingerprints", allowCheckpoint: false, keepLatestWhenThrottled: true);
 					try {
 						fEntry = new(file);
 					}
@@ -744,6 +773,7 @@ namespace VDF.Core {
 					}
 					else
 						RefreshExistingEntry(fEntry, dbEntry);
+					IncrementProgress(file.FullName);
 				}
 			}
 
@@ -3122,6 +3152,7 @@ namespace VDF.Core {
 		public void Resume() {
 			if (!isScanning || pauseTokenSource.IsPaused != true) return;
 			Logger.Instance.Info("Scan resumed by user");
+			activityLog.Resumed();
 			ElapsedTimer.Start();
 			SearchTimer.Start();
 			pauseTokenSource.IsPaused = false;

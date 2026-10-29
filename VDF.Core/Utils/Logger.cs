@@ -36,6 +36,9 @@ namespace VDF.Core.Utils {
 		public event LogEventHandler? LogEntryAdded;
 		public delegate void LogEventHandler(LogEntry entry);
 		static readonly object lockObject = new();
+		readonly object recentGate = new();
+		readonly Queue<LogEntry> recentEntries = new();
+		public LogEntry[] RecentEntries { get { lock (recentGate) return recentEntries.ToArray(); } }
 		static readonly Lazy<string> _logFilePath = new(() =>
 			Path.Combine(CoreUtils.IsCurrentFolderWritable
 				? CoreUtils.CurrentFolder
@@ -49,6 +52,10 @@ namespace VDF.Core.Utils {
 		public void BeginSession(string label) => Add(new LogEntry(DateTime.Now, LogSeverity.Info, label, IsSessionStart: true));
 
 		void Add(LogEntry entry) {
+			lock (recentGate) {
+				recentEntries.Enqueue(entry);
+				while (recentEntries.Count > 2000) recentEntries.Dequeue();
+			}
 			LogEntryAdded?.Invoke(entry);
 			lock (lockObject) {
 				// Best-effort: a reader holding log.txt (tail, editor, antivirus) must

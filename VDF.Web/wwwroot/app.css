@@ -1496,3 +1496,12 @@ input.input-invalid:focus { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
     .folder-picker .folder-list { min-height:80px; }
     .folder-row { min-height:66px; }
 }
+
+/* Shared desktop/mobile activity log: readable full paths and newest messages first. */
+.activity-log { display:grid; gap:.65rem; margin-top:1rem; }
+.activity-log-entry { padding:.8rem 1rem; border:1px solid var(--border, #7775); border-radius:8px; }
+.activity-log-entry p { margin:.4rem 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.activity-log-entry small { opacity:.8; }
+.activity-log-entry.warning { border-left:4px solid #d49323; }
+.activity-log-entry.error { border-left:4px solid #d95050; }
+.progress-section .file-path { overflow-wrap:anywhere; white-space:normal; }

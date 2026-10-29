@@ -23,6 +23,21 @@ public sealed class ScanSetupTests : BunitContext {
     }
 
     [Fact]
+    public void FolderListingShowsItsPathAndCountBeforeTotalIsKnown() {
+        typeof(ScanService).GetProperty(nameof(ScanService.State))!.SetValue(scan, ScanState.Scanning);
+        typeof(ScanService).GetProperty(nameof(ScanService.LastProgress))!.SetValue(scan, new ScanProgressArgs {
+            CurrentFile = @"Z:\videos\currently-reading", CurrentStage = "Listing folders", Current = 123, Max = 0,
+            Elapsed = TimeSpan.FromSeconds(40)
+        });
+        var page = Render<VDF.Web.Components.Pages.Index>();
+        Assert.Contains("Listing folders", page.Find(".state-label").TextContent);
+        Assert.Contains(@"Z:\videos\currently-reading", page.Find(".file-path").TextContent);
+        Assert.Contains("123", page.Find(".scan-stat-grid").TextContent);
+        Assert.Contains("still counting", page.Markup);
+        Assert.NotNull(page.Find("a[href='/log']"));
+    }
+
+    [Fact]
     public void SetupShowsFoldersProfilesAndSummary_AndCustomIsRestored() {
         scan.Settings.Percent = 95; scan.Settings.IncludeList.Add("C:\\videos");
         scan.Settings.HddMaxDegreeOfParallelism = 4; scan.Settings.UsePHashing = true;

@@ -35,6 +35,11 @@ The comparer can check either copy or check the group and move to the next one.
 Browse uses one-tap folder navigation, drive labels and free space, breadcrumbs,
 quick locations, filtering, and a separate Use this folder action.
 Login details are stored locally in Phone-login.txt; they are excluded from Git.
+The Log tab on mobile shows the same live activity messages as the desktop.
+Long tasks report every 10 seconds, including the latest file/folder and counters.
+After 30 seconds with no reported work change, a warning explains that VDF may be
+waiting on a file, drive, network share, or decoder. It does not claim a proven hang.
+Folder listing shows visited folders, checked entries and found media before its total is known.
 Build files, databases and logs are also excluded from Git.
 
 To rebuild from the repository root (close VDF first):

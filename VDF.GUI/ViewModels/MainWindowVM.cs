@@ -246,8 +246,9 @@ namespace VDF.GUI.ViewModels {
 		int _ScanProgressMaxValue = 100;
 		public int ScanProgressMaxValue {
 			get => _ScanProgressMaxValue;
-			set => this.RaiseAndSetIfChanged(ref _ScanProgressMaxValue, value);
+			set { this.RaiseAndSetIfChanged(ref _ScanProgressMaxValue, value); this.RaisePropertyChanged(nameof(ScanProgressTotalUnknown)); }
 		}
+		public bool ScanProgressTotalUnknown => ScanProgressMaxValue <= 0;
 		/// <summary>Per-drive rows of the Scanning state (mockup .drives); rows exist only while the analysis phase reports drive data.</summary>
 		public ScanDrivesPresenter ScanDrives { get; } = new(() => App.Lang["Scan.FilesPerSec"]);
 		string _ScanProgressCount = string.Empty;
@@ -735,7 +736,7 @@ namespace VDF.GUI.ViewModels {
 				ScanCurrentFile = e.CurrentFile;
 				RemainingTime = e.Remaining.Format();
 				ScanProgressValue = e.CurrentPosition;
-				ScanProgressCount = $"{e.CurrentPosition:N0} / {e.MaxPosition:N0}";
+				ScanProgressCount = e.MaxPosition > 0 ? $"{e.CurrentPosition:N0} / {e.MaxPosition:N0}" : $"{e.CurrentPosition:N0} found · still counting";
 				TimeElapsed = e.Elapsed.Format();
 				ScanProgressMaxValue = e.MaxPosition;
 				ScanDrives.Update(e.Drives, DateTime.UtcNow);

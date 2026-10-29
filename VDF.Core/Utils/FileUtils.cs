@@ -76,7 +76,7 @@ namespace VDF.Core.Utils {
 		// mark whole libraries +S, and an unconditional System skip hid every one of them (#876).
 		// Hidden alone has been scanned since 2021 (a1c4806).
 		const FileAttributes HiddenSystemFolder = FileAttributes.Hidden | FileAttributes.System;
-		internal static List<FileInfo> GetFilesRecursive(string initial, bool ignoreReadonly, bool ignoreReparsePoints, bool recursive, bool includeImages, List<string> excludeFolders, CancellationToken cancellationToken) {
+		internal static List<FileInfo> GetFilesRecursive(string initial, bool ignoreReadonly, bool ignoreReparsePoints, bool recursive, bool includeImages, List<string> excludeFolders, CancellationToken cancellationToken, Action<string, int, int, int>? onProgress = null) {
 			EnumerationOptions enumerationOptions = new() {
 				IgnoreInaccessible = true,
 				// No attribute skip for files: a video marked +S or +H is still a video.
@@ -105,23 +105,33 @@ namespace VDF.Core.Utils {
 			Queue<DirectoryInfo> subFolders = new();
 			subFolders.Enqueue(new(initial));
 			int skippedHiddenSystem = 0, skippedReadonly = 0, skippedReparse = 0;
+			int directoriesVisited = 0, entriesExamined = 0;
 
 			while (subFolders.Count > 0) {
 				if (cancellationToken.IsCancellationRequested)
 					break;
 				DirectoryInfo currentFolder = subFolders.Dequeue();
+				directoriesVisited++;
+				onProgress?.Invoke(currentFolder.FullName, directoriesVisited, files.Count, entriesExamined);
 				// File listing and subfolder discovery fail independently: a single
 				// unreadable entry aborting the file enumeration (e.g. filesystem
 				// corruption on an external drive) must not cost the whole subtree —
 				// that turned "Include subfolders" into a no-op with only the root
 				// folder's files partially found and no per-subfolder hint (#876).
 				try {
-					files.AddRange(new FileSystemEnumerable<FileInfo>(currentFolder.FullName,
+					foreach (var file in new FileSystemEnumerable<FileInfo>(currentFolder.FullName,
 						(ref FileSystemEntry entry) => (FileInfo)entry.ToFileSystemInfo(),
 						enumerationOptions) {
-						ShouldIncludePredicate = (ref FileSystemEntry entry) =>
-							!entry.IsDirectory && extensionLookup.Contains(Path.GetExtension(entry.FileName))
-					});
+						ShouldIncludePredicate = (ref FileSystemEntry entry) => {
+							entriesExamined++;
+							if ((entriesExamined & 4095) == 0) onProgress?.Invoke(currentFolder.FullName, directoriesVisited, files.Count, entriesExamined);
+							return !entry.IsDirectory && extensionLookup.Contains(Path.GetExtension(entry.FileName));
+						}
+					}) {
+						if (cancellationToken.IsCancellationRequested) break;
+						files.Add(file);
+						if ((files.Count & 255) == 0) onProgress?.Invoke(currentFolder.FullName, directoriesVisited, files.Count, entriesExamined);
+					}
 				}
 				catch (DirectoryNotFoundException) {
 					// Deleted between discovery and enumeration — subfolder discovery
@@ -182,6 +192,7 @@ namespace VDF.Core.Utils {
 				Logger.Instance.Info($"Skipped {skippedHiddenSystem + skippedReadonly + skippedReparse} subfolder(s) of '{initial}' including everything inside them: {string.Join(", ", reasons)}.");
 			}
 
+			onProgress?.Invoke(initial, directoriesVisited, files.Count, entriesExamined);
 			return files;
 
 		}
