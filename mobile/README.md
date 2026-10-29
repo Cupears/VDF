@@ -45,6 +45,9 @@ checking old paths. New fingerprints are kept for the analysis step, and files b
 the fingerprint's 64 KiB minimum are not opened just to attempt that fingerprint.
 The live log includes an HDD cache reuse summary. The existing database format stays the same.
 Build files, databases and logs are also excluded from Git.
+Desktop and mobile share a larger ETA card with time left, estimated step finish,
+percentage and elapsed scan time. It clearly labels unknown totals, paused scans,
+and wrapping-up work. Estimates cover the current step, not all later scan phases.
 Settings > Scan includes "Include very dark photos". It retries previously dark-skipped
 photos on the next scan and keeps their grayscale samples for classic matching.
 Matches carry a "Dark photo" review label. The switch syncs with the desktop;

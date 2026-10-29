@@ -60,6 +60,8 @@ namespace VDF.Web.Services {
 		CancellationTokenSource _cts = new();
 
 		public ScanState State { get; private set; } = ScanState.Idle;
+		public bool IsPaused { get; private set; }
+		public void SetPaused(bool paused) { IsPaused = paused; Notify(); }
 		public string? ErrorMessage { get; private set; }
 		public ScanProgressArgs? LastProgress { get; private set; }
 		/// <summary>Total files hashed (captured when BuildingHashesDone fires).</summary>
@@ -121,11 +123,13 @@ namespace VDF.Web.Services {
 				// Skip low-res thumbnail retrieval — WebUI loads HQ thumbnails on demand
 				// via the /thumbnail/hq endpoint. This makes results available immediately.
 				State = ScanState.Done;
+				IsPaused = false;
 				LastProgress = null;
 				Notify();
 			};
 			_engine.ScanAborted += (_, _) => {
 				State = ScanState.Aborted;
+				IsPaused = false;
 				LastProgress = null;
 				Notify();
 			};
@@ -142,6 +146,7 @@ namespace VDF.Web.Services {
 			SyncSharedSettings();
 			_cts = new CancellationTokenSource();
 			State = ScanState.Scanning;
+			IsPaused = false;
 			ErrorMessage = null;
 			LastProgress = null;
 			FilesHashed = 0;
@@ -177,8 +182,8 @@ namespace VDF.Web.Services {
 			Notify();
 		}
 
-		public void Pause() { if (DesktopPause != null) DesktopPause(true); else _engine.Pause(); }
-		public void Resume() { if (DesktopPause != null) DesktopPause(false); else _engine.Resume(); }
+		public void Pause() { if (DesktopPause != null) DesktopPause(true); else { _engine.Pause(); SetPaused(true); } }
+		public void Resume() { if (DesktopPause != null) DesktopPause(false); else { _engine.Resume(); SetPaused(false); } }
 
 		public void Stop() {
 			if (DesktopStop != null) { DesktopStop(); return; }
@@ -198,6 +203,7 @@ namespace VDF.Web.Services {
 		}
 
 		public void DesktopScanStarting() {
+			IsPaused = false;
 			desktopResults = Array.Empty<DuplicateItem>();
 			State = ScanState.Scanning;
 			ErrorMessage = null;
@@ -221,6 +227,7 @@ namespace VDF.Web.Services {
 		public void Reset() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;
 			State = ScanState.Idle;
+			IsPaused = false;
 			ErrorMessage = null;
 			LastProgress = null;
 			FilesHashed = 0;

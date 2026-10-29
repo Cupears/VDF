@@ -1505,3 +1505,17 @@ input.input-invalid:focus { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
 .activity-log-entry.warning { border-left:4px solid #d49323; }
 .activity-log-entry.error { border-left:4px solid #d95050; }
 .progress-section .file-path { overflow-wrap:anywhere; white-space:normal; }
+
+/* One shared, clearly phase-scoped ETA on desktop and phone. */
+.eta-card { margin:1rem 0; padding:1.25rem; border:1px solid var(--border, #7775); border-radius:14px; background:var(--bg-card, transparent); }
+.eta-status { font-size:.72rem; letter-spacing:.08em; font-weight:700; margin:0 0 .8rem; }
+.eta-hero { display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:1rem; margin-bottom:1rem; }
+.eta-time { font-size:clamp(1.8rem,5vw,2.8rem); line-height:1.15; font-variant-numeric:tabular-nums; }
+.eta-finish { display:grid; gap:.35rem; text-align:right; }
+.eta-finish small { font-size:.68rem; opacity:.8; }
+.eta-finish strong { font-size:1.05rem; }
+.eta-note { font-size:.82rem; line-height:1.5; margin:.8rem 0 0; opacity:.85; }
+.eta-unknown-track { height:14px; border-radius:7px; background:repeating-linear-gradient(135deg,#8883 0 9px,#8881 9px 18px); }
+.eta-card .progress-bar-track { height:14px; }
+.eta-stats { margin-top:1rem; }
+@media (max-width:520px) { .eta-hero { grid-template-columns:1fr; } .eta-finish { text-align:left; } .eta-card { padding:1rem; } }

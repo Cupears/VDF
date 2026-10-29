@@ -120,6 +120,7 @@ namespace VDF.GUI.ViewModels {
 			set {
 				if (value == _IsScanning) return;
 				this.RaiseAndSetIfChanged(ref _IsScanning, value);
+				if (value) UpdateScanEta(ScanProgressSnapshot.Default);
 				if (value) mobileSession?.DesktopScanStarting();
 				RaiseScannerStateChanged();
 				// Back on the Setup screen (scan aborted/stopped with no results):
@@ -146,7 +147,11 @@ namespace VDF.GUI.ViewModels {
 		bool _IsPaused;
 		public bool IsPaused {
 			get => _IsPaused;
-			set => this.RaiseAndSetIfChanged(ref _IsPaused, value);
+			set {
+				this.RaiseAndSetIfChanged(ref _IsPaused, value);
+				UpdateScanEta(etaProgress);
+				mobileSession?.SetPaused(value);
+			}
 		}
 		bool _ShowThumbnailRetrievalProgressBar;
 		public bool ShowThumbnailRetrievalProgressBar {
@@ -729,6 +734,7 @@ namespace VDF.GUI.ViewModels {
 
 		void Scanner_Progress(object? sender, ScanProgressSnapshot e) =>
 			Dispatcher.UIThread.InvokeAsync(() => {
+				UpdateScanEta(e);
 				// Stage/file properties for the Scanning state's center panel.
 				ScanStageText = string.IsNullOrEmpty(e.CurrentStage)
 					? string.Empty

@@ -12,55 +12,50 @@
        elapsed + current file directly under the bar, bordered trust note.
        The log tail lives OUTSIDE the card and stretches with the window so long
        paths and remediation hints are not clipped to 780px (#836). -->
-  <Grid RowDefinitions="Auto,*">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <Grid RowDefinitions="Auto,Auto">
     <StackPanel
         Grid.Row="0"
-        Width="780"
-        MaxWidth="780"
-        Margin="32,44,32,0"
-        HorizontalAlignment="Center"
+
+        MaxWidth="900"
+        Margin="24,24,24,0"
+        HorizontalAlignment="Stretch"
         VerticalAlignment="Top">
 
-      <!-- header row -->
-      <DockPanel LastChildFill="False" Margin="0,0,0,6">
-        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="12">
-          <TextBlock FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"
-                     Text="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Title]}" />
-          <Border CornerRadius="10" Padding="10,2" VerticalAlignment="Center"
-                  Background="{actipro:ThemeResource ControlBackgroundBrushSoftAccent}"
-                  IsVisible="{Binding ScanStageText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding ScanStageText}" />
-          </Border>
+      <TextBlock FontSize="20" FontWeight="SemiBold" Margin="0,0,0,8"
+                 Text="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Title]}" />
+      <TextBlock FontSize="13" Margin="0,0,0,12" TextWrapping="Wrap" Text="{Binding ScanStageText}" />
+      <Border Padding="20" CornerRadius="12" Background="{actipro:ThemeResource Container2BackgroundBrush}"
+              BorderBrush="{actipro:ThemeResource Container3BorderBrush}" BorderThickness="1">
+        <StackPanel Spacing="12">
+          <TextBlock FontSize="11" FontWeight="SemiBold" Opacity="{DynamicResource VdfTextDim80Opacity}" TextWrapping="Wrap" Text="{Binding ScanEta.Status}" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+            <TextBlock FontSize="38" FontWeight="Bold" TextWrapping="Wrap" Text="{Binding ScanEta.Remaining}"
+                       AutomationProperties.Name="Estimated time left in current step" />
+            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <TextBlock FontSize="11" Opacity="{DynamicResource VdfTextDim80Opacity}" Text="ESTIMATED STEP FINISH · PC TIME" />
+              <TextBlock FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding ScanEta.Finish}" />
+            </StackPanel>
+          </Grid>
+          <ProgressBar Height="15" CornerRadius="7" Minimum="0" Maximum="100"
+                       Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidAccent}"
+                       Value="{Binding ScanEta.Progress}" IsIndeterminate="{Binding ScanEta.UnknownTotal}"
+                       AutomationProperties.Name="Current step progress" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock FontSize="13" TextWrapping="Wrap" Text="{Binding ScanEta.Count}" />
+              <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextDim80Opacity}"><Run Text="Elapsed scan time: " /><Run Text="{Binding ScanEta.Elapsed}" /></TextBlock>
+            </StackPanel>
+            <TextBlock Grid.Column="1" FontSize="22" FontWeight="SemiBold" Text="{Binding ScanEta.Percent}" />
+          </Grid>
+          <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextDim80Opacity}" TextWrapping="Wrap" Text="{Binding ScanEta.Note}" />
         </StackPanel>
-        <TextBlock DockPanel.Dock="Right" FontSize="13.5" Opacity="{DynamicResource VdfTextDim80Opacity}" VerticalAlignment="Center">
-          <Run Text="{Binding ScanProgressCount, Mode=OneWay}" />
-          <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[Scan.FilesUnit]}" />
-          <Run Text="· ~" /><Run Text="{Binding RemainingTime, Mode=OneWay}" />
-          <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Left]}" />
-        </TextBlock>
-      </DockPanel>
-
-      <ProgressBar
-          Height="10"
-          CornerRadius="5"
-          AutomationProperties.Name="{Binding Source={x:Static local:App.Lang}, Path=[Scan.Title]}"
-          Maximum="{Binding ScanProgressMaxValue, Mode=OneWay}"
-          IsIndeterminate="{Binding ScanProgressTotalUnknown}"
-          Value="{Binding ScanProgressValue, Mode=OneWay}" />
-
-      <!-- elapsed + current file (mockup .scanmeta) -->
-      <StackPanel Orientation="Horizontal" Spacing="18" Margin="0,6,0,0">
-        <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextFaintOpacity}">
-          <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.ElapsedTime]}" />
-          <Run Text="{Binding TimeElapsed, Mode=OneWay}" />
-        </TextBlock>
-        <TextBlock FontSize="12" Opacity="{DynamicResource VdfTextFaintOpacity}" MaxWidth="520"
-                   FontFamily="Cascadia Mono,Consolas,monospace"
-                   TextTrimming="PrefixCharacterEllipsis"
-                   ToolTip.Tip="{Binding ScanCurrentFile}"
-                   Text="{Binding ScanCurrentFile}" />
+      </Border>
+      <StackPanel Spacing="4" Margin="0,12,0,0">
+        <TextBlock FontSize="11" Opacity="{DynamicResource VdfTextDim80Opacity}" Text="LATEST FILE OR FOLDER" />
+        <TextBlock FontSize="12" FontFamily="Cascadia Mono,Consolas,monospace"
+                   TextTrimming="PrefixCharacterEllipsis" ToolTip.Tip="{Binding ScanCurrentFile}" Text="{Binding ScanCurrentFile}" />
       </StackPanel>
-
       <!-- per-drive rows (mockup .drives): label + type chip | byte-weighted bar | files stat.
            Present only while the analysis phase reports drive data; compare phases carry none. -->
       <ItemsControl
@@ -170,4 +165,5 @@
       </StackPanel>
     </Border>
   </Grid>
+  </ScrollViewer>
 </UserControl>

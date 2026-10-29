@@ -23,6 +23,16 @@ public sealed class ScanSetupTests : BunitContext {
     }
 
     [Fact]
+    public async Task EtaCardShowsRemainingAndHonorsSharedPauseState() {
+        typeof(ScanService).GetProperty(nameof(ScanService.State))!.SetValue(scan, ScanState.Scanning);
+        typeof(ScanService).GetProperty(nameof(ScanService.LastProgress))!.SetValue(scan, new ScanProgressArgs { Current = 25, Max = 100, Remaining = TimeSpan.FromMinutes(12) });
+        var page = Render<VDF.Web.Components.Pages.Index>();
+        Assert.Contains("12m 0s", page.Find(".eta-time").TextContent);
+        await page.InvokeAsync(() => scan.SetPaused(true));
+        page.WaitForAssertion(() => Assert.Equal("Paused", page.Find(".eta-time").TextContent));
+    }
+
+    [Fact]
     public void FolderListingShowsItsPathAndCountBeforeTotalIsKnown() {
         typeof(ScanService).GetProperty(nameof(ScanService.State))!.SetValue(scan, ScanState.Scanning);
         typeof(ScanService).GetProperty(nameof(ScanService.LastProgress))!.SetValue(scan, new ScanProgressArgs {

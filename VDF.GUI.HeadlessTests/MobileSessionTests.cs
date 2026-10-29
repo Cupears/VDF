@@ -51,10 +51,12 @@ public sealed class MobileSessionTests {
             await Task.Delay(80);
             HeadlessUi.Pump();
             Assert.True(vm.IsPaused);
+            Assert.True(scan.IsPaused);
             scan.Resume();
             await Task.Delay(80);
             HeadlessUi.Pump();
             Assert.False(vm.IsPaused);
+            Assert.False(scan.IsPaused);
         } finally { vm.IsScanning = false; vm.CloseMobileSession(); }
     });
 }

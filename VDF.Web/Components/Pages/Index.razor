@@ -3,6 +3,7 @@
 @inject ScanService Scan
 @inject FFmpegSetupService FFmpegSetup
 @implements IDisposable
+@using VDF.Core.Utils
 
 <PageTitle>Scan — Video Duplicate Finder</PageTitle>
 
@@ -59,15 +60,23 @@
     <div class="progress-section">
         <span class="eyebrow">SCAN IN PROGRESS</span><h2>@(Scan.State == ScanState.Comparing ? "Finding matches" : "Reading and sampling files")</h2>
         @if (Scan.LastProgress is { } p) {
+            var eta = ScanEtaDisplay.From(new VDF.Core.ScanProgressSnapshot(p.CurrentFile, p.Current, p.Max, p.Elapsed, p.Remaining, p.CurrentStage, p.StageCurrent, p.StageMax, null), Scan.IsPaused, DateTimeOffset.Now);
             <p class="state-label">@p.CurrentStage</p>
-            @if (p.Max > 0) {
-                int pct = (int)Math.Clamp(100L * p.Current / p.Max, 0, 100);
-                <div class="progress-bar-track">
-                    <div class="progress-bar-fill" style="width:@pct%"></div>
+            <section class="eta-card" aria-label="Current step time estimate">
+                <p class="eta-status">@eta.Status</p>
+                <div class="eta-hero">
+                    <strong class="eta-time">@eta.Remaining</strong>
+                    <div class="eta-finish"><small>ESTIMATED STEP FINISH · PC TIME</small><strong>@eta.Finish</strong></div>
                 </div>
-            }
-            else { <p>Total not known yet — still listing or preparing files.</p> }
-            <div class="scan-stat-grid"><div><small>Items / files found</small><strong>@p.Current.ToString("N0")@(p.Max > 0 ? $" / {p.Max:N0}" : " · still counting")</strong></div><div><small>Elapsed</small><strong>@FormatEta(p.Elapsed)</strong></div><div><small>Time left</small><strong>@(p.Remaining > TimeSpan.Zero ? FormatEta(p.Remaining) : "Not known yet")</strong></div></div>
+                @if (eta.UnknownTotal) { <div class="eta-unknown-track" aria-label="Still finding the total"></div> }
+                else {
+                    <div class="progress-bar-track" role="progressbar" aria-label="Current step progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@eta.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                        <div class="progress-bar-fill" style="width:@(eta.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                    </div>
+                }
+                <div class="eta-stats scan-stat-grid"><div><small>Items / files found</small><strong>@eta.Count</strong></div><div><small>Elapsed scan time</small><strong>@eta.Elapsed</strong></div><div><small>Current step</small><strong>@eta.Percent</strong></div></div>
+                <p class="eta-note">@eta.Note</p>
+            </section>
             <p class="file-path" title="@p.CurrentFile">@p.CurrentFile</p>
             @if (p.StageMax > 0) { <p class="stage-label">Current task: @p.StageCurrent / @p.StageMax</p> }
         }
@@ -80,8 +89,8 @@
         }
         <p><a href="/log">Open live activity log</a> — folder names, current work, and quiet-progress warnings.</p>
         <div class="actions">
-            <button @onclick="Scan.Pause">Pause</button>
-            <button @onclick="Scan.Resume">Resume</button>
+            <button @onclick="Scan.Pause" disabled="@Scan.IsPaused">Pause</button>
+            <button @onclick="Scan.Resume" disabled="@(!Scan.IsPaused)">Resume</button>
             <button class="danger" @onclick="Scan.Stop">Stop</button>
         </div>
     </div>
