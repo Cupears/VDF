@@ -254,6 +254,20 @@ namespace VDF.GUI.Views {
 			ResultsListControl.SelectedItem = row;
 		}
 
+		void OnGroupHeaderPointerPressed(object? sender, PointerPressedEventArgs e) {
+			if (!e.GetCurrentPoint(sender as Control).Properties.IsLeftButtonPressed ||
+				sender is not Control { DataContext: ResultsGroupHeader header } ||
+				ViewModel == null)
+				return;
+			// Keep the Compare / Keep best / Check all buttons working on their own.
+			if (e.Source is Control source &&
+				(source.FindAncestorOfType<Button>(includeSelf: true) != null ||
+				 source.FindAncestorOfType<CheckBox>(includeSelf: true) != null))
+				return;
+			ViewModel.ToggleGroupCollapsedCommand.Execute(header).Subscribe();
+			e.Handled = true;
+		}
+
 		void OnThumbnailDoubleTapped(object? sender, TappedEventArgs e) {
 			ViewModel?.ThumbnailDoubleClickCommand.Execute().Subscribe();
 			e.Handled = true;

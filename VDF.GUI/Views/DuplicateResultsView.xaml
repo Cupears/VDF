@@ -508,7 +508,8 @@
               Padding="6,5"
               Background="{actipro:ThemeResource Container2BackgroundBrush}"
               BorderBrush="{actipro:ThemeResource Container3BorderBrush}"
-              BorderThickness="0,1,0,1">
+              BorderThickness="0,1,0,1"
+              PointerPressed="OnGroupHeaderPointerPressed">
             <Border.ContextMenu>
               <ContextMenu>
                 <MenuItem
