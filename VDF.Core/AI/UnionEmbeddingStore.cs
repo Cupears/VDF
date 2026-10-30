@@ -21,7 +21,7 @@ using VDF.Core.Utils;
 
 namespace VDF.Core.AI {
 	/// <summary>
-	/// Sidecar cache for the union pass's neural embeddings (384 bytes per sampled
+	/// Sidecar cache for the union pass's neural embeddings (768 bytes per sampled
 	/// position, keyed like <see cref="FileEntry.grayBytes"/>). Deliberately NOT part of
 	/// the main scan database: at library scale the data is bulky, only needed while AI
 	/// matching is enabled, and fully recomputable — keeping it out of FileEntry means
@@ -51,7 +51,7 @@ namespace VDF.Core.AI {
 
 		internal static string StorePath =>
 			TestOverrideStorePath ??
-			FileUtils.SafePathCombine(CoreUtils.ResolveDatabaseFolder(Utils.DatabaseUtils.CustomDatabaseFolder), "UnionEmbeddings.db");
+			FileUtils.SafePathCombine(CoreUtils.ResolveDatabaseFolder(Utils.DatabaseUtils.CustomDatabaseFolder), $"UnionEmbeddings{AiComponents.ModelCacheSuffix}.db");
 
 		/// <summary>Test hook: isolates store tests from the real database folder.</summary>
 		internal static string? TestOverrideStorePath;

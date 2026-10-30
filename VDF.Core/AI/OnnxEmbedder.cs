@@ -20,7 +20,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace VDF.Core.AI {
 	/// <summary>
-	/// Wraps the ONNX image-embedding model (DINOv2-small vision transformer). Input is a
+	/// Wraps the ONNX image-embedding model (DINOv2-base vision transformer). Input is a
 	/// raw 224×224 RGB24 frame; output an L2-normalized (optionally int8-quantized)
 	/// embedding whose dot product is the frames' cosine similarity. Instances are
 	/// created per scan; <see cref="EmbedBatch"/> is called from a single worker thread.

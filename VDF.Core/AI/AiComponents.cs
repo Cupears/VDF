@@ -29,7 +29,7 @@ namespace VDF.Core.AI {
 	/// <summary>
 	/// Locates and downloads the two native components AI matching needs: the ONNX Runtime
 	/// library (per-RID archive from the official microsoft/onnxruntime GitHub release,
-	/// pinned version) and the DINOv2-small embedding model (SHA256-pinned). Nothing is
+	/// pinned version) and the DINOv2-base embedding model (SHA256-pinned). Nothing is
 	/// bundled with VDF releases — the FFmpeg pattern: opt-in download on first use into
 	/// <c>{StateFolder}/ai</c>. Under Native AOT the OnnxRuntime *Managed* wrapper is pure
 	/// P/Invoke; a DllImport resolver points its "onnxruntime" import at the downloaded
@@ -42,17 +42,18 @@ namespace VDF.Core.AI {
 		/// binaries (1.24+ dropped Intel macs, which VDF releases still target).
 		/// </summary>
 		public const string RuntimeVersion = "1.23.2";
-		public const string ModelFileName = "dinov2-small-int8.onnx";
-		/// <summary>SHA256 of the model file (Xenova/dinov2-small ONNX export, quantized, Apache-2.0).</summary>
-		public const string ModelSha256 = "3afdc8bc63b50558d6e5770f5b799bb82455c2311183a2de43803f343a29d917";
-		// Primary: mirrored release asset on the VDF repo (stable bytes, hash-pinned).
-		// Fallback: the upstream HuggingFace export the mirror was taken from.
-		const string ModelPrimaryUrl = "https://github.com/0x90d/videoduplicatefinder/releases/download/ai-models-v1/dinov2-small-int8.onnx";
-		const string ModelFallbackUrl = "https://huggingface.co/Xenova/dinov2-small/resolve/main/onnx/model_quantized.onnx";
+		public const string ModelFileName = "dinov2-base-int8.onnx";
+		/// <summary>SHA256 of Xenova's quantized DINOv2-base ONNX model (Apache-2.0).</summary>
+		public const string ModelSha256 = "1a1210212e3d8c2924d2ad985e46207bb407ac9a9763a240cacdeb94cd0bbf9c";
+		const string ModelPrimaryUrl = "https://huggingface.co/Xenova/dinov2-base/resolve/main/onnx/model_quantized.onnx?download=true";
+		const string ModelFallbackUrl = "https://huggingface.co/Xenova/dinov2-base/resolve/main/onnx/model_quantized.onnx";
 		const string VersionMarkerFileName = "runtime.version";
 
 		public static string AiFolder => TestAiFolder.Value ?? Path.Combine(CoreUtils.StateFolder, "ai");
 		public static string ModelPath => TestOverrideModelPath ?? Path.Combine(AiFolder, ModelFileName);
+		internal static string ModelCacheSuffix => ModelFileName == "dinov2-small-int8.onnx"
+			? string.Empty
+			: "." + Path.GetFileNameWithoutExtension(ModelFileName);
 
 		/// <summary>
 		/// Test hook: points ModelPath at the checked-in tiny embedder and makes

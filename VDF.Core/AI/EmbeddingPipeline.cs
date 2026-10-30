@@ -113,7 +113,7 @@ namespace VDF.Core.AI {
 						store.Put(batchEntries[i].entry, batchEntries[i].key, embeddings[i]);
 						Interlocked.Increment(ref embeddedCount);
 					}
-					// Only the 384-byte embedding is kept - the frames recycle (#878).
+					// Only the 768-byte embedding is kept - the frames recycle (#878).
 					ReturnBatchFrames();
 				}
 

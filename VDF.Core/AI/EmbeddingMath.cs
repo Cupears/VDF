@@ -26,8 +26,8 @@ namespace VDF.Core.AI {
 	/// &lt;1% — far below the matching thresholds in use.
 	/// </summary>
 	static class EmbeddingMath {
-		/// <summary>DINOv2-small embedding width.</summary>
-		public const int Dimensions = 384;
+		/// <summary>DINOv2-base embedding width.</summary>
+		public const int Dimensions = 768;
 		const float QuantScale = 127f;
 
 		internal static byte[] QuantizeUnitVector(ReadOnlySpan<float> vector) {

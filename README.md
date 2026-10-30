@@ -375,7 +375,7 @@ Screenshots of the redesigned 4.1 interface are coming. The historic screenshot 
 # License
 Video Duplicate Finder is licensed under AGPLv3.
 
-The optional AI components are downloaded separately on first use and carry their own licenses: ONNX Runtime (MIT) and the DINOv2-small embedding model (Apache-2.0). Neither is bundled with or linked into the release binaries.
+The optional AI components are downloaded separately on first use and carry their own licenses: ONNX Runtime (MIT) and the DINOv2-base embedding model (Apache-2.0). Neither is bundled with or linked into the release binaries.
 
 # Credits / Third Party
 - [Avalonia](https://github.com/AvaloniaUI/Avalonia)
@@ -386,7 +386,7 @@ The optional AI components are downloaded separately on first use and carry thei
 - [AcoustID.NET by wo80](https://github.com/wo80/AcoustID.NET) — the audio fingerprinting pipeline (Chromaprint-style chroma extraction, FIR smoothing, and fingerprint encoding) used for partial clip detection is derived from this library, licensed under LGPL 2.1
 
 - [ONNX Runtime](https://github.com/microsoft/onnxruntime) (Microsoft, MIT) — inference engine for the optional AI matching feature
-- [DINOv2](https://github.com/facebookresearch/dinov2) (Meta AI, Apache-2.0) — the image embedding model behind AI matching, used as the int8-quantized ONNX export from [Xenova/dinov2-small](https://huggingface.co/Xenova/dinov2-small) (mirrored on this repo's [ai-models-v1 release](https://github.com/0x90d/videoduplicatefinder/releases/tag/ai-models-v1))
+- [DINOv2](https://github.com/facebookresearch/dinov2) (Meta AI, Apache-2.0) — the image embedding model behind AI matching, using the int8-quantized ONNX export from [Xenova/dinov2-base](https://huggingface.co/Xenova/dinov2-base)
 
 # Building
 - .NET 10.x
