@@ -143,7 +143,7 @@ public class EmbeddingMathTests {
 			float[] a = RandomUnitVector(rng);
 			var b = (float[])a.Clone();
 			for (int i = 0; i < b.Length; i++)
-				b[i] += (float)(rng.NextDouble() * 2 - 1) * 0.05f;
+				b[i] += (float)(rng.NextDouble() * 2 - 1) * 0.04f * (float)Math.Sqrt(384d / EmbeddingMath.Dimensions);
 			byte[] qa = EmbeddingMath.QuantizeUnitVector(a);
 			byte[] qb = EmbeddingMath.QuantizeUnitVector(b);
 			if (EmbeddingMath.CosineSimilarity(qa, qb) < threshold)

@@ -19,8 +19,8 @@ namespace VDF.TestSupport;
 public static class TestModels {
 	/// <summary>
 	/// Deterministic stand-in for the DINOv2 model: same I/O contract
-	/// (pixel_values [B,3,224,224] float → [B,384] float) built from
-	/// AveragePool → Flatten → seeded fixed random projection. Content-sensitive
+	/// (pixel_values [B,3,224,224] float → [B,768] float) built from
+	/// AveragePool → Flatten → seeded fixed random projection → concatenation. Content-sensitive
 	/// enough for same-frame matching tests, tiny enough to check in.
 	/// </summary>
 	public static string TinyEmbedderPath =>

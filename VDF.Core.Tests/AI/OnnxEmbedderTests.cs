@@ -45,7 +45,7 @@ public class OnnxEmbedderTests {
 	}
 
 	[Fact]
-	public void EmbedBatch_ReturnsNormalized384DimVectors() {
+	public void EmbedBatch_ReturnsNormalized768DimVectors() {
 		using var embedder = new OnnxEmbedder(TestModels.TinyEmbedderPath);
 		float[][] embeddings = embedder.EmbedBatch(new[] { PatternFrame(1), PatternFrame(2), PatternFrame(3) });
 
@@ -106,7 +106,7 @@ public class OnnxEmbedderTests {
 	[Fact]
 	public async Task EmbeddingPipeline_RecyclesSubmittedFramesIntoThePool() {
 		// Frames are pool-owned after SubmitFrame (#878): once the batch is embedded,
-		// only the 384-byte embedding survives and the 150 KB buffer must recycle.
+		// only the 768-byte embedding survives and the 150 KB buffer must recycle.
 		var entry = new FileEntry { Folder = @"D:\media" };
 		entry.Path = @"D:\media\recycle.mp4";
 		var store = new UnionEmbeddingStore();
