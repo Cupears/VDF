@@ -278,14 +278,6 @@
               <views:SettingsProfileBanner />
 
               <views:SettingRow
-                  Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Title]}"
-                  Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Desc]}"
-                  SearchTags="ai only grayscale phash disable algorithms">
-                <ToggleSwitch Classes="plain"
-                              IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=AiOnlyMatching}" />
-              </views:SettingRow>
-
-              <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Percent.Title]}"
                   IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Percent.Desc]}">
@@ -319,6 +311,14 @@
                   IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=PHashComparisonActive}">
                 <NumericUpDown Classes="stepper" FormatString="\{0\}%" Increment="1" Maximum="100" Minimum="1"
                                Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=PHashSampleRatioPercent}" />
+              </views:SettingRow>
+
+              <views:SettingRow
+                  Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Title]}"
+                  Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Desc]}"
+                  SearchTags="ai only grayscale phash disable algorithms">
+                <ToggleSwitch Classes="plain"
+                              IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=AiOnlyMatching}" />
               </views:SettingRow>
 
               <views:SettingRow

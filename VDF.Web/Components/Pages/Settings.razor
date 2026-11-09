@@ -92,12 +92,6 @@
         Include images
     </label>
     <label>
-        <input type="checkbox" id="ai-only-matching"
-               checked="@Scan.Settings.AiOnlyMatching"
-               @onchange="e => { Scan.Settings.AiOnlyMatching = (bool)e.Value!; if (Scan.Settings.AiOnlyMatching) Scan.Settings.UseAiMatching = true; }" />
-        AI only (skip grayscale, pHash and audio clip matching)
-    </label>
-    <label>
         <input type="checkbox"
                disabled="@Scan.Settings.AiOnlyMatching"
                checked="@Scan.Settings.UsePHashing"
@@ -110,6 +104,12 @@
                checked="@Scan.Settings.CombineGrayscaleAndPHash"
                @onchange="e => Scan.Settings.CombineGrayscaleAndPHash = (bool)e.Value!" />
         Combined matching (run grayscale and pHash together; either method can find a match)
+    </label>
+    <label>
+        <input type="checkbox" id="ai-only-matching"
+               checked="@Scan.Settings.AiOnlyMatching"
+               @onchange="e => { Scan.Settings.AiOnlyMatching = (bool)e.Value!; if (Scan.Settings.AiOnlyMatching) Scan.Settings.UseAiMatching = true; }" />
+        AI only (skip grayscale, pHash and audio clip matching)
     </label>
     <label>
         <input type="checkbox"
