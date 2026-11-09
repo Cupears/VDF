@@ -41,6 +41,7 @@ namespace VDF.GUI.Data {
 		[JsonInclude] public bool IgnoreWhitePixels { get; set; }
 		[JsonInclude] public bool EnablePartialClipDetection { get; set; }
 		[JsonInclude] public bool UseAiMatching { get; set; }
+		[JsonInclude] public bool AiOnlyMatching { get; set; }
 		[JsonInclude] public bool EnableAiPartialDetection { get; set; }
 	}
 
@@ -108,6 +109,7 @@ namespace VDF.GUI.Data {
 			IgnoreWhitePixels = settings.IgnoreWhitePixels,
 			EnablePartialClipDetection = settings.EnablePartialClipDetection,
 			UseAiMatching = settings.UseAiMatching,
+			AiOnlyMatching = settings.AiOnlyMatching,
 			EnableAiPartialDetection = settings.EnableAiPartialDetection,
 		};
 
@@ -118,6 +120,7 @@ namespace VDF.GUI.Data {
 			settings.IgnoreWhitePixels == knobs.IgnoreWhitePixels &&
 			settings.EnablePartialClipDetection == knobs.EnablePartialClipDetection &&
 			settings.UseAiMatching == knobs.UseAiMatching &&
+			settings.AiOnlyMatching == knobs.AiOnlyMatching &&
 			settings.EnableAiPartialDetection == knobs.EnableAiPartialDetection;
 
 		/// <summary>The profile the current knob values correspond to; Custom when none match.</summary>
@@ -151,6 +154,7 @@ namespace VDF.GUI.Data {
 			settings.IgnoreWhitePixels = knobs.IgnoreWhitePixels;
 			settings.EnablePartialClipDetection = knobs.EnablePartialClipDetection;
 			settings.UseAiMatching = knobs.UseAiMatching;
+			settings.AiOnlyMatching = knobs.AiOnlyMatching;
 			settings.EnableAiPartialDetection = knobs.EnableAiPartialDetection;
 		}
 	}

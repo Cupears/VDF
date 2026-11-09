@@ -4,6 +4,25 @@ namespace VDF.GUI.Tests;
 
 public class DesktopSettingsSyncTests {
     [Fact]
+    public void AiOnlyRoundTripsAndKeepsClassicChoicesForWhenItIsTurnedOff() {
+        var gui = new SettingsFile { UsePHash = true, CombineGrayPHash = true, AiOnlyMatching = true };
+        Assert.True(gui.UseAiMatching);
+        Assert.False(gui.PHashComparisonActive);
+        var core = DesktopSettingsSync.Capture(gui);
+        Assert.True(core.AiOnlyMatching);
+        var restored = new SettingsFile();
+        DesktopSettingsSync.Apply(restored, core);
+        Assert.True(restored.AiOnlyMatching);
+        Assert.True(ScanProfileMapper.Capture(restored).AiOnlyMatching);
+        Assert.Equal(ScanProfile.Custom, ScanProfileMapper.Detect(restored));
+        restored.UseAiMatching = false;
+        Assert.False(restored.AiOnlyMatching);
+        Assert.True(restored.PHashComparisonActive);
+        ScanProfileMapper.Apply(ScanProfile.AiScan, restored);
+        Assert.False(restored.AiOnlyMatching);
+    }
+
+    [Fact]
     public void AdapterConvertsPercentagesAndPreservesDesktopOnlySettings() {
         var gui = new SettingsFile {
             Percent = 94, Thumbnails = 8, PHashSampleRatioPercent = 75,

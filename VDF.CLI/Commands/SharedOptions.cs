@@ -155,6 +155,10 @@ namespace VDF.CLI.Commands {
 			Description = "Additional AI matching pass with neural image embeddings: finds cropped, mirrored or heavily edited copies the classic methods miss. Downloads the AI components (ONNX Runtime + model, ~100 MB) on first use."
 		};
 
+		internal static readonly Option<bool> AiOnly = new("--ai-only") {
+			Description = "Use only AI matching, skipping grayscale, pHash and audio partial matching."
+		};
+
 		internal static readonly Option<float> AiPercent = new("--ai-percent") {
 			Description = "Similarity threshold (50-100) for the AI matching pass. Default: 94.",
 			DefaultValueFactory = _ => 94f,
@@ -241,6 +245,7 @@ namespace VDF.CLI.Commands {
 			if (r.GetResult(PartialClipRequireVisualMatch) != null) s.PartialClipRequireVisualMatch = r.GetValue(PartialClipRequireVisualMatch);
 			if (r.GetResult(PartialClipVisualThreshold) != null) s.PartialClipVisualThreshold = r.GetValue(PartialClipVisualThreshold);
 			if (r.GetResult(AiMatching) != null) s.UseAiMatching = r.GetValue(AiMatching);
+			if (r.GetResult(AiOnly) != null) s.AiOnlyMatching = r.GetValue(AiOnly);
 			if (r.GetResult(AiPercent) != null) s.AiPercent = Math.Clamp(r.GetValue(AiPercent), 50f, 100f);
 			if (r.GetResult(AiPartial) != null) s.EnableAiPartialDetection = r.GetValue(AiPartial);
 			if (r.GetResult(AiPartialHitPercent) != null) s.AiPartialHitPercent = Math.Clamp(r.GetValue(AiPartialHitPercent), 70f, 99f);
@@ -272,6 +277,7 @@ namespace VDF.CLI.Commands {
 			cmd.Options.Add(PartialClipRequireVisualMatch);
 			cmd.Options.Add(PartialClipVisualThreshold);
 			cmd.Options.Add(AiMatching);
+			cmd.Options.Add(AiOnly);
 			cmd.Options.Add(AiPercent);
 			cmd.Options.Add(AiPartial);
 			cmd.Options.Add(AiPartialHitPercent);
@@ -304,6 +310,7 @@ namespace VDF.CLI.Commands {
 			cmd.Options.Add(PartialClipRequireVisualMatch);
 			cmd.Options.Add(PartialClipVisualThreshold);
 			cmd.Options.Add(AiMatching);
+			cmd.Options.Add(AiOnly);
 			cmd.Options.Add(AiPercent);
 			cmd.Options.Add(AiPartial);
 			cmd.Options.Add(AiPartialHitPercent);

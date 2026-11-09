@@ -92,24 +92,33 @@
         Include images
     </label>
     <label>
+        <input type="checkbox" id="ai-only-matching"
+               checked="@Scan.Settings.AiOnlyMatching"
+               @onchange="e => { Scan.Settings.AiOnlyMatching = (bool)e.Value!; if (Scan.Settings.AiOnlyMatching) Scan.Settings.UseAiMatching = true; }" />
+        AI only (skip grayscale, pHash and audio clip matching)
+    </label>
+    <label>
         <input type="checkbox"
+               disabled="@Scan.Settings.AiOnlyMatching"
                checked="@Scan.Settings.UsePHashing"
                @onchange="e => Scan.Settings.UsePHashing = (bool)e.Value!" />
         Use perceptual hashing
     </label>
     <label>
         <input type="checkbox"
+               disabled="@Scan.Settings.AiOnlyMatching"
                checked="@Scan.Settings.CombineGrayscaleAndPHash"
                @onchange="e => Scan.Settings.CombineGrayscaleAndPHash = (bool)e.Value!" />
         Combined matching (run grayscale and pHash together; either method can find a match)
     </label>
     <label>
         <input type="checkbox"
-               checked="@Scan.Settings.UseAiMatching"
+               disabled="@Scan.Settings.AiOnlyMatching"
+               checked="@Scan.Settings.AiMatchingEnabled"
                @onchange="e => Scan.Settings.UseAiMatching = (bool)e.Value!" />
-        AI matching (additional pass; downloads ONNX Runtime + model on first scan, ~100 MB)
+        AI matching (uses DINOv2-base; downloads components when needed)
     </label>
-    @if (Scan.Settings.UseAiMatching) {
+    @if (Scan.Settings.AiMatchingEnabled) {
         <label>
             AI similarity threshold % (50–100)
             <input type="number" min="50" max="100" step="0.5"
@@ -286,6 +295,7 @@
     <h2>Partial Clip Detection</h2>
     <label>
         <input type="checkbox"
+               disabled="@Scan.Settings.AiOnlyMatching"
                checked="@Scan.Settings.EnablePartialClipDetection"
                @onchange="e => Scan.Settings.EnablePartialClipDetection = (bool)e.Value!" />
         Enable partial clip detection (audio fingerprinting)

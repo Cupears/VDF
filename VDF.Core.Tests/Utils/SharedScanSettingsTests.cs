@@ -11,13 +11,14 @@ public sealed class SharedScanSettingsTests : IDisposable {
 
     [Fact]
     public void FirstDesktopSeeds_ThenWebPulls_AndEditsFlowBothWays() {
-        var desktop = new Settings { Percent = 91, HddMaxDegreeOfParallelism = 3 };
+        var desktop = new Settings { Percent = 91, HddMaxDegreeOfParallelism = 3, AiOnlyMatching = true };
         desktop.IncludeList.Add("D:\\Videos");
         var web = new Settings();
         var desktopStore = new SharedScanSettings(PathName); var webStore = new SharedScanSettings(PathName);
         var dOrder = Order(); var wOrder = new List<string>(); var disabled = new List<string>();
         Assert.True(desktopStore.Synchronize(desktop, dOrder, disabled));
         Assert.True(webStore.Synchronize(web, wOrder, new()));
+        Assert.True(web.AiOnlyMatching); Assert.True(web.AiMatchingEnabled);
         Assert.Equal(91, web.Percent); Assert.Contains("D:\\Videos", web.IncludeList); Assert.Equal(dOrder, wOrder);
         web.Percent = 95;
         Assert.True(webStore.Synchronize(web, wOrder, new()));

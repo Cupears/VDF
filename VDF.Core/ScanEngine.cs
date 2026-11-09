@@ -384,7 +384,7 @@ namespace VDF.Core {
 				Logger.Instance.Info(T("Log.FinishedBuildingFileList", SearchTimer.StopGetElapsedAndRestart()));
 				FilesEnumerated?.Invoke(this, new EventArgs());
 				try {
-					if (!cancelationTokenSource.IsCancellationRequested && Settings.UseAiMatching) {
+					if (!cancelationTokenSource.IsCancellationRequested && Settings.AiMatchingEnabled) {
 						unionEmbeddingStore = AI.UnionEmbeddingStore.Load();
 						aiEmbeddingPipeline = new AI.EmbeddingPipeline(AI.AiComponents.ModelPath, unionEmbeddingStore, cancelationTokenSource.Token);
 					}
@@ -448,7 +448,7 @@ namespace VDF.Core {
 				Logger.Instance.Info(T("Log.ScanForDuplicates"));
 				if (!cancelationTokenSource.IsCancellationRequested)
 					await Task.Run(ScanForDuplicates, cancelationTokenSource.Token);
-				if (!cancelationTokenSource.IsCancellationRequested && Settings.EnablePartialClipDetection)
+				if (!cancelationTokenSource.IsCancellationRequested && Settings.AudioPartialDetectionEnabled)
 					await Task.Run(ScanForPartialDuplicates, cancelationTokenSource.Token);
 				// After the audio pass: videos it already grouped are excluded, the visual
 				// pass only adds pairs audio could not see (no/replaced audio, music-only).
@@ -1148,7 +1148,7 @@ namespace VDF.Core {
 							}
 							if (hasAllInformation) {
 								// Thumbnails are cached but audio fingerprint might still be needed
-								if (NeedsAudioFingerprint(entry, Settings.EnablePartialClipDetection, Settings.AlwaysRetryFailedSampling)) {
+								if (NeedsAudioFingerprint(entry, Settings.AudioPartialDetectionEnabled, Settings.AlwaysRetryFailedSampling)) {
 									string cachedAudioPath = entry.Path;
 									string audioStageLabel = T("Scan.Stage.AudioFingerprint");
 									ReportProgress(cachedAudioPath, audioStageLabel);
@@ -1233,7 +1233,7 @@ namespace VDF.Core {
 
 						// Audio fingerprint — videos only, only when enabled,
 						// skipped if already cached or flagged as having no audio track.
-						if (NeedsAudioFingerprint(entry, Settings.EnablePartialClipDetection, Settings.AlwaysRetryFailedSampling)) {
+						if (NeedsAudioFingerprint(entry, Settings.AudioPartialDetectionEnabled, Settings.AlwaysRetryFailedSampling)) {
 							string audioPath = entry.Path;
 							string audioLabel = T("Scan.Stage.AudioFingerprint");
 							ReportProgress(audioPath, audioLabel);
@@ -1475,13 +1475,13 @@ namespace VDF.Core {
 					|| imageGray.Length != GrayBytesUtils.Side * GrayBytesUtils.Side)
 					return false;
 				entry.compareGray = new[] { imageGray };
-				if (Settings.UseAiMatching)
+				if (Settings.AiMatchingEnabled)
 					BuildAiCompareSnapshot(entry, new[] { (double)0 }, entry.compareGray);
 				return true;
 			}
 
 			var gray = new byte[]?[positionList.Count];
-			var positionKeys = Settings.UseAiMatching ? new double[positionList.Count] : null;
+			var positionKeys = Settings.AiMatchingEnabled ? new double[positionList.Count] : null;
 			for (int j = 0; j < positionList.Count; j++) {
 				double idx = GetGrayBytesIndex(entry, positionList[j]);
 				if (positionKeys != null)
@@ -1497,7 +1497,7 @@ namespace VDF.Core {
 				gray[j] = data;
 			}
 
-			if (usePHashing) {
+			if (usePHashing && !Settings.AiOnlyMatching) {
 				var phashes = new ulong[positionList.Count];
 				for (int j = 0; j < positionList.Count; j++) {
 					double idx = GetGrayBytesIndex(entry, positionList[j]);
@@ -1527,8 +1527,8 @@ namespace VDF.Core {
 		/// regardless of content, which would turn the union pass into a false-positive
 		/// generator on fade-outs and night scenes).
 		/// </summary>
-		void BuildAiCompareSnapshot(FileEntry entry, double[] positionKeys, byte[]?[] gray) {
-			AI.UnionEmbeddingStore? store = unionEmbeddingStore;
+		void BuildAiCompareSnapshot(FileEntry entry, double[] positionKeys, byte[]?[] gray, AI.UnionEmbeddingStore? store = null) {
+			store ??= unionEmbeddingStore;
 			var embeddings = new byte[]?[positionKeys.Length];
 			var valid = new bool[positionKeys.Length];
 			for (int j = 0; j < positionKeys.Length; j++) {
@@ -1579,7 +1579,7 @@ namespace VDF.Core {
 
 		/// <summary>
 		/// The pair verdict: the classic gray-bytes/pHash check, unioned with the AI
-		/// embedding pass when <see cref="Settings.UseAiMatching"/> is on — a pair the
+		/// embedding pass when <see cref="Settings.AiMatchingEnabled"/> is on — a pair the
 		/// classic mode rejects still counts as a duplicate when the mean embedding
 		/// similarity reaches <see cref="Settings.AiPercent"/> (<paramref name="aiMatched"/>
 		/// reports that case so callers can flag it). The AI pass only runs on the
@@ -1590,9 +1590,11 @@ namespace VDF.Core {
 		/// </summary>
 		internal bool CheckIfDuplicate(FileEntry entry, byte[]?[]? overrideGray, ulong[]? overridePHashes, FileEntry compItem, out float difference, out bool aiMatched, out DuplicateFlags algorithms) {
 			aiMatched = false;
-			if (CheckIfDuplicateClassic(entry, overrideGray, overridePHashes, compItem, out difference, out algorithms))
+			difference = 1f;
+			algorithms = DuplicateFlags.None;
+			if (!Settings.AiOnlyMatching && CheckIfDuplicateClassic(entry, overrideGray, overridePHashes, compItem, out difference, out algorithms))
 				return true;
-			if (overrideGray != null || !Settings.UseAiMatching)
+			if (overrideGray != null || !Settings.AiMatchingEnabled)
 				return false;
 			float aiSimilarity = ComputeAiSimilarity(entry, compItem);
 			if (aiSimilarity < Settings.AiPercent / 100f)
@@ -1740,10 +1742,10 @@ namespace VDF.Core {
 			// Entries whose stored data is incomplete for the current settings are dropped
 			// here (previously they would have failed mid-comparison on every pair).
 			// The combined mode (#842) needs the pHash snapshots (and flip hashes) too.
-			bool usePHashing = Settings.UsePHashing || Settings.CombineGrayscaleAndPHash;
+			bool usePHashing = !Settings.AiOnlyMatching && (Settings.UsePHashing || Settings.CombineGrayscaleAndPHash);
 			int droppedSnapshots = 0;
 			{
-				if (Settings.UseAiMatching && unionEmbeddingStore == null) {
+				if (Settings.AiMatchingEnabled && unionEmbeddingStore == null) {
 					// Compare-only run (no scan phase loaded the sidecar in this process).
 					unionEmbeddingStore = AI.UnionEmbeddingStore.Load();
 					if (unionEmbeddingStore.Count == 0)
@@ -1771,8 +1773,8 @@ namespace VDF.Core {
 			// The effective matching configuration, so "setting X seems to do nothing"
 			// reports (#893) are answerable from the log alone. GUI profile cards may
 			// have overwritten what the user believes they configured.
-			string matchingAlgorithm = Settings.CombineGrayscaleAndPHash ? "grayscale+pHash" : Settings.UsePHashing ? "pHash" : "grayscale";
-			Logger.Instance.Info($"Matching settings: algorithm={matchingAlgorithm}, threshold={Settings.Percent}%, ignore black pixels={(Settings.IgnoreBlackPixels ? "on" : "off")}, ignore white pixels={(Settings.IgnoreWhitePixels ? "on" : "off")}, flipped compare={(Settings.CompareHorizontallyFlipped ? "on" : "off")}, AI matching={(Settings.UseAiMatching ? "on" : "off")}");
+			string matchingAlgorithm = Settings.AiOnlyMatching ? "AI only" : Settings.CombineGrayscaleAndPHash ? "grayscale+pHash" : Settings.UsePHashing ? "pHash" : "grayscale";
+			Logger.Instance.Info($"Matching settings: algorithm={matchingAlgorithm}, threshold={(Settings.AiOnlyMatching ? Settings.AiPercent : Settings.Percent)}%, ignore black pixels={(Settings.IgnoreBlackPixels ? "on" : "off")}, ignore white pixels={(Settings.IgnoreWhitePixels ? "on" : "off")}, flipped compare={(Settings.CompareHorizontallyFlipped ? "on" : "off")}, AI matching={(Settings.AiMatchingEnabled ? "on" : "off")}");
 			// Precompute the pHash quorum threshold once for the whole phase (see field note).
 			matchingRequiredSampleMatches = usePHashing
 				? Math.Max(1, (int)Math.Ceiling(positionList.Count * Math.Clamp(Settings.PHashRequiredMatchingSampleRatio, 0.01f, 1f)))
@@ -1877,7 +1879,7 @@ namespace VDF.Core {
 					flags |= algorithms;
 				if (aiMatched)
 					flags |= DuplicateFlags.AiMatched;
-				if (Settings.CompareHorizontallyFlipped &&
+				if (!Settings.AiOnlyMatching && Settings.CompareHorizontallyFlipped &&
 					CheckIfDuplicate(entry, flippedGrayBytes, flippedPHashes, compItem, out float flippedDifference, out _, out DuplicateFlags flippedAlgorithms)) {
 					if (!isDuplicate || flippedDifference < difference) {
 						// The flipped pass is classic-only, so a better flipped match
@@ -1939,7 +1941,7 @@ namespace VDF.Core {
 				double entryDurationSeconds = entry.mediaInfo!.Duration.TotalSeconds;
 				double entryToleranceSeconds = GetDurationToleranceSeconds(entryDurationSeconds);
 
-				if (Settings.CompareHorizontallyFlipped) {
+				if (!Settings.AiOnlyMatching && Settings.CompareHorizontallyFlipped) {
 					flippedGrayBytes = CreateFlippedGrayBytes(entry);
 					if (usePHashing)
 						flippedPHashes = ComputePHashesFromGray(flippedGrayBytes);
@@ -1964,7 +1966,7 @@ namespace VDF.Core {
 				Action<int> compareAction = i => {
 					var entry = imageEntries[i];
 					byte[]?[]? flippedGrayBytes = null;
-					if (Settings.CompareHorizontallyFlipped)
+					if (!Settings.AiOnlyMatching && Settings.CompareHorizontallyFlipped)
 						flippedGrayBytes = CreateFlippedGrayBytes(entry);
 					for (int n = i + 1; n < imageEntries.Count; n++) {
 						var compItem = imageEntries[n];
@@ -1999,7 +2001,7 @@ namespace VDF.Core {
 					double entryDurationSeconds = entry.mediaInfo!.Duration.TotalSeconds;
 					double entryToleranceSeconds = GetDurationToleranceSeconds(entryDurationSeconds);
 
-					if (Settings.CompareHorizontallyFlipped) {
+					if (!Settings.AiOnlyMatching && Settings.CompareHorizontallyFlipped) {
 						flippedGrayBytes = CreateFlippedGrayBytes(entry);
 						if (usePHashing)
 							flippedPHashes = ComputePHashesFromGray(flippedGrayBytes);

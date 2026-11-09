@@ -53,6 +53,38 @@ public class AiUnionMatchingTests {
 		new() { Settings = { UseAiMatching = useAi, AiPercent = aiPercent, Percent = percent, UsePHashing = false } };
 
 	[Fact]
+	public void AiOnly_RejectsAClassicMatchAndNeverFallsBackForMissingEmbeddings() {
+		var engine = Engine();
+		engine.Settings.AiOnlyMatching = true;
+		engine.Settings.UsePHashing = true;
+		engine.Settings.CombineGrayscaleAndPHash = true;
+		var a = Entry("a.mp4", 128, UnitEmbedding(0));
+		var b = Entry("b.mp4", 128, UnitEmbedding(1));
+		a.comparePHashes = b.comparePHashes = new ulong[] { 123 };
+		Assert.False(engine.CheckIfDuplicate(a, null, null, b, out _, out bool aiMatched));
+		Assert.False(aiMatched);
+		b.compareEmbeddings = null;
+		Assert.False(engine.CheckIfDuplicate(a, null, null, b, out _, out _));
+	}
+
+	[Fact]
+	public void AiOnly_RequiresAiAndFlagsAnEmbeddingMatchEvenWithClassicDataAbsent() {
+		var engine = Engine(useAi: false);
+		engine.Settings.AiOnlyMatching = true;
+		engine.Settings.EnablePartialClipDetection = true;
+		var a = Entry("a.png", 128, UnitEmbedding(0));
+		var b = Entry("b.png", 128, UnitEmbedding(0));
+		a.IsImage = b.IsImage = true;
+		a.compareGray = b.compareGray = null;
+		Assert.True(engine.Settings.NeedsAiComponents);
+		Assert.False(engine.Settings.AudioPartialDetectionEnabled);
+		Assert.True(engine.CheckIfDuplicate(a, null, null, b, out _, out bool aiMatched, out var algorithms));
+		Assert.True(aiMatched);
+		Assert.Equal(DuplicateFlags.None, algorithms);
+		Assert.False(engine.CheckIfDuplicate(a, new byte[]?[] { GrayFrame(128) }, null, b, out _));
+	}
+
+	[Fact]
 	public void ClassicFail_AiIdenticalEmbeddings_MatchesAsAiPair() {
 		var engine = Engine();
 		// Gray values 39% apart — far beyond the 96% threshold — but identical embeddings.

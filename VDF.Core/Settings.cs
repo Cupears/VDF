@@ -169,6 +169,12 @@ namespace VDF.Core {
 		/// Requires the AI components (ONNX Runtime + model) — see AI.AiComponents.
 		/// </summary>
 		public bool UseAiMatching;
+		/// <summary>Only neural embeddings decide matches; skip grayscale, pHash and audio partial matching.</summary>
+		public bool AiOnlyMatching;
+		[System.Text.Json.Serialization.JsonIgnore]
+		public bool AiMatchingEnabled => UseAiMatching || AiOnlyMatching;
+		[System.Text.Json.Serialization.JsonIgnore]
+		public bool AudioPartialDetectionEnabled => EnablePartialClipDetection && !AiOnlyMatching;
 		/// <summary>Similarity threshold (percent = cosine·100) for the AI matching pass.</summary>
 		public float AiPercent = 94f;
 		/// <summary>
@@ -186,7 +192,7 @@ namespace VDF.Core {
 		/// AI-backed settings must be added here, not at the call sites.
 		/// </summary>
 		[System.Text.Json.Serialization.JsonIgnore]
-		public bool NeedsAiComponents => UseAiMatching || EnableAiPartialDetection;
+		public bool NeedsAiComponents => AiMatchingEnabled || EnableAiPartialDetection;
 
 		// ── Database checkpoints ────────────────────────────────────────────
 		/// <summary>

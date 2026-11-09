@@ -341,7 +341,7 @@ namespace VDF.GUI.Data {
 		}
 		/// <summary>The pHash comparison (and its sample-quorum setting) is in play - alone or combined.</summary>
 		[JsonIgnore]
-		public bool PHashComparisonActive => UsePHash || CombineGrayPHash;
+		public bool PHashComparisonActive => !AiOnlyMatching && (UsePHash || CombineGrayPHash);
 		/// <summary>Percentage of sampled frame positions that must individually pass the pHash threshold — see Core's PHashRequiredMatchingSampleRatio (0..1).</summary>
 		[JsonPropertyName("PHashSampleRatioPercent")]
 		public float PHashSampleRatioPercent {
@@ -351,8 +351,23 @@ namespace VDF.GUI.Data {
 		[JsonPropertyName("UseAiMatching")]
 		public bool UseAiMatching {
 			get;
-			set => this.RaiseAndSetIfChanged(ref field, value);
+			set {
+				this.RaiseAndSetIfChanged(ref field, value);
+				if (!value) AiOnlyMatching = false;
+			}
 		}
+		[JsonPropertyName("AiOnlyMatching")]
+		public bool AiOnlyMatching {
+			get;
+			set {
+				this.RaiseAndSetIfChanged(ref field, value);
+				if (value) UseAiMatching = true;
+				this.RaisePropertyChanged(nameof(ClassicMatchingEnabled));
+				this.RaisePropertyChanged(nameof(PHashComparisonActive));
+			}
+		}
+		[JsonIgnore]
+		public bool ClassicMatchingEnabled => !AiOnlyMatching;
 		/// <summary>Similarity threshold (percent = cosine·100) for the AI matching pass.</summary>
 		[JsonPropertyName("AiPercent")]
 		public float AiPercent {
@@ -372,7 +387,7 @@ namespace VDF.GUI.Data {
 		} = 89f;
 		/// <summary>GUI mirror of Core Settings.NeedsAiComponents — keep the two in sync.</summary>
 		[JsonIgnore]
-		public bool NeedsAiComponents => UseAiMatching || EnableAiPartialDetection;
+		public bool NeedsAiComponents => UseAiMatching || AiOnlyMatching || EnableAiPartialDetection;
 		[JsonPropertyName("UseExifCreationDate")]
 		public bool UseExifCreationDate {
 			get;

@@ -49,6 +49,24 @@ public sealed class SettingsPageTests : BunitContext {
 		Render<VDF.Web.Components.Pages.Settings>();
 
 	[Fact]
+	public void AiOnlySwitchEnablesAiAndDisablesClassicChoices() {
+		scan.Settings.UsePHashing = true;
+		var page = RenderPage();
+		page.Find("#ai-only-matching").Change(true);
+		Assert.True(scan.Settings.AiOnlyMatching);
+		Assert.True(scan.Settings.AiMatchingEnabled);
+		Assert.True(scan.Settings.UsePHashing);
+		Assert.Equal("Custom", VDF.Core.Utils.ScanPresets.Detect(scan.Settings));
+		var preset = VDF.Core.Utils.ScanPresets.Capture(scan.Settings);
+		VDF.Core.Utils.ScanPresets.Apply(scan.Settings, "Exact & near copies");
+		Assert.False(scan.Settings.AiOnlyMatching);
+		VDF.Core.Utils.ScanPresets.Apply(scan.Settings, "Custom", preset);
+		Assert.True(scan.Settings.AiOnlyMatching);
+		page.Find("#ai-only-matching").Change(false);
+		Assert.False(scan.Settings.AiOnlyMatching);
+	}
+
+	[Fact]
 	public void DarkPhotoSwitchUpdatesTheSharedScanSettings() {
 		var page = RenderPage();
 		page.Find("input[aria-label='Include very dark photos']").Change(true);

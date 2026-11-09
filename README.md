@@ -64,6 +64,13 @@ CLI: `--ai-matching`, `--ai-percent`, `--ai-partial`, `--ai-partial-hit-percent`
 
 ---
 
+### AI-only matching
+
+Enable **AI only (skip grayscale and pHash)** under Settings → Matching on desktop, or **AI only** on the web Settings page. This enables AI matching and uses its similarity threshold. Turning the mode off restores the saved classic matching choices. Audio clip matching is skipped in this mode; optional AI visual clip matching still works.
+
+Frame preparation and the dark-frame guard still run. AI-only comparisons require cached AI embeddings, so run a full scan when embeddings are missing. Existing classic scan data and the separate DINOv2-base AI caches are kept.
+
+
 # Downloads
 
 [Daily build](https://github.com/0x90d/videoduplicatefinder/releases/tag/4.1.x) — attachments are automatically rebuilt and replaced on every commit.
@@ -190,6 +197,7 @@ vdf-cli scan-and-compare \
 | `--partial-clip-require-visual` | Require a visual frame check on partial-clip matches | on |
 | `--partial-clip-visual-threshold <n>` | Min visual similarity for the partial-clip gate (0.0–1.0) | 0.85 |
 | `--ai-matching` | AI matching pass (downloads components on first use) | off |
+| `--ai-only` | Use only AI for matching; skip grayscale, pHash and audio clip matching | off |
 | `--ai-percent <n>` | AI similarity threshold (50–100) | 94 |
 | `--ai-partial` | Visual partial detection via AI keyframes (no audio needed) | off |
 | `--ai-partial-hit-percent <n>` | Per-keyframe hit threshold (70–99) | 89 |

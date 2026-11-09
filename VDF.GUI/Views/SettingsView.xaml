@@ -278,7 +278,16 @@
               <views:SettingsProfileBanner />
 
               <views:SettingRow
+                  Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Title]}"
+                  Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.AiOnly.Desc]}"
+                  SearchTags="ai only grayscale phash disable algorithms">
+                <ToggleSwitch Classes="plain"
+                              IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=AiOnlyMatching}" />
+              </views:SettingRow>
+
+              <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Percent.Title]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Percent.Desc]}">
                 <NumericUpDown Classes="stepper" FormatString="\{0\}%" Increment="0.1" Maximum="100" Minimum="1"
                                Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=Percent}" />
@@ -286,16 +295,17 @@
 
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.UsePHash.Title]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.UsePHash.Desc]}"
-                  SearchTags="phash perceptual hash"
-                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=!CombineGrayPHash}">
-                <ToggleSwitch Classes="plain"
+                  SearchTags="phash perceptual hash">
+                <ToggleSwitch Classes="plain" IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=!CombineGrayPHash}"
                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=UsePHash}" />
               </views:SettingRow>
 
               <!-- #842: run grayscale AND pHash in one pass; groups get per-algorithm badges. -->
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.CombineGrayPHash.Title]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.CombineGrayPHash.Desc]}"
                   SearchTags="combined both algorithms grayscale phash badges">
                 <ToggleSwitch Classes="plain"
@@ -342,6 +352,7 @@
 
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Flip.Title]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.Flip.Desc]}"
                   SearchTags="mirror flip">
                 <ToggleSwitch Classes="plain"
@@ -350,6 +361,7 @@
 
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.Title]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[Settings.Row.IgnoreBW.Desc]}"
                   SearchTags="letterbox borders bars">
                 <StackPanel Orientation="Horizontal" Spacing="14">
@@ -449,6 +461,7 @@
 
               <views:SettingRow
                   Title="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.EnablePartialClipDetection]}"
+                  IsEnabled="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ClassicMatchingEnabled}"
                   Description="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.EnablePartialClipDetectionTooltip]}"
                   Warning="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.PartialClipDetectionWarning]}"
                   SearchTags="partial clips audio fingerprint deep clean">

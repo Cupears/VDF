@@ -49,7 +49,7 @@ namespace VDF.Core {
 			matchingRequiredSampleMatches = null;
 
 			string FormatSimilarity(float similarity) =>
-				float.IsNaN(similarity) ? "NaN" : (similarity * 100f).ToString("0.0#", inv) + "%";
+				float.IsNaN(similarity) ? (Settings.AiOnlyMatching ? "unavailable" : "NaN") : (similarity * 100f).ToString("0.0#", inv) + "%";
 			string FormatSeconds(double s) => s.ToString("0.0##", inv) + "s";
 
 			sb.AppendLine("=== Duplicate Detection Test ===");
@@ -261,7 +261,7 @@ namespace VDF.Core {
 				else {
 					sb.AppendLine("FAIL — the duration difference exceeds the tolerance. The files are never visually compared.");
 					failures.Add($"The durations differ by {FormatSeconds(diffSeconds)} but only {FormatSeconds(allowedSeconds)} is allowed.");
-					hints.Add($"Increase the duration difference tolerance (currently {Settings.PercentDurationDifference.ToString("0.#", inv)}%) so that {FormatSeconds(diffSeconds)} falls within the allowed range{(Settings.EnablePartialClipDetection ? "" : ", or enable partial clip detection if one video is a cut-down version of the other")}.");
+					hints.Add($"Increase the duration difference tolerance (currently {Settings.PercentDurationDifference.ToString("0.#", inv)}%) so that {FormatSeconds(diffSeconds)} falls within the allowed range{(Settings.AudioPartialDetectionEnabled ? "" : ", or enable partial clip detection if one video is a cut-down version of the other")}.");
 				}
 				sb.AppendLine();
 			}
@@ -289,19 +289,30 @@ namespace VDF.Core {
 				sb.AppendLine();
 			}
 
+			if (Settings.AiOnlyMatching) {
+				var aiStore = AI.UnionEmbeddingStore.Load();
+				foreach (var entry in new[] { a, b }) {
+					var keys = entry.IsImage ? new[] { 0d } : positions.Select(p => entry.GetGrayBytesIndex(p, Settings.MaxSamplingDurationSeconds)).ToArray();
+					BuildAiCompareSnapshot(entry, keys, entry.compareGray!, aiStore);
+				}
+				if (ComputeAiSimilarity(a, b) < 0)
+					hints.Add("AI embeddings are missing or invalid. Run a full scan with AI matching enabled to populate the cache.");
+			}
+
 			// ── Visual similarity ───────────────────────────────────────────
 			sb.AppendLine("--- Visual similarity ---");
-			bool usePHash = !a.IsImage && Settings.UsePHashing;
-			sb.AppendLine($"Method: {(a.IsImage ? "32x32 grayscale (single image)" : usePHash ? $"perceptual hash (pHash), quorum over {positions.Count} frame(s)" : $"32x32 grayscale, averaged over {positions.Count} frame(s)")}{(Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ? $" — ignoring {(Settings.IgnoreBlackPixels && Settings.IgnoreWhitePixels ? "black and white" : Settings.IgnoreBlackPixels ? "black" : "white")} pixels" : "")}");
+			bool usePHash = !Settings.AiOnlyMatching && !a.IsImage && Settings.UsePHashing;
+			sb.AppendLine($"Method: {(Settings.AiOnlyMatching ? "AI only (grayscale and pHash skipped)" : a.IsImage ? "32x32 grayscale (single image)" : usePHash ? $"perceptual hash (pHash), quorum over {positions.Count} frame(s)" : $"32x32 grayscale, averaged over {positions.Count} frame(s)")}{(!Settings.AiOnlyMatching && (Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels) ? $" — ignoring {(Settings.IgnoreBlackPixels && Settings.IgnoreWhitePixels ? "black and white" : Settings.IgnoreBlackPixels ? "black" : "white")} pixels" : "")}");
 
 			bool isDuplicate = CheckIfDuplicate(a, null, null, b, out float difference);
-			float similarity = 1f - difference;
+			float similarity = Settings.AiOnlyMatching ? ComputeAiSimilarity(a, b) : 1f - difference;
+            if (Settings.AiOnlyMatching && similarity < 0) similarity = float.NaN;
 
 			// Per-frame breakdown for the grayscale path. CheckIfDuplicate exits early
 			// once the accumulated difference exceeds the limit and then reports no
 			// meaningful difference value, so the displayed similarity is recomputed
 			// here from all frames (the pass/fail verdict above is authoritative).
-			if (!a.IsImage && !usePHash) {
+			if (!Settings.AiOnlyMatching && !a.IsImage && !usePHash) {
 				float diffSum = 0f;
 				for (int j = 0; j < positions.Count; j++) {
 					float frameDiff = Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ?
@@ -337,11 +348,11 @@ namespace VDF.Core {
 				sb.AppendLine($"Frames passing the similarity threshold: {passCount} of {positions.Count} — required: {requiredMatches}");
 			}
 
-			sb.AppendLine($"Similarity: {FormatSimilarity(similarity)} — required: at least {Settings.Percent.ToString("0.#", inv)}%");
+			sb.AppendLine($"Similarity: {FormatSimilarity(similarity)} — required: at least {(Settings.AiOnlyMatching ? Settings.AiPercent : Settings.Percent).ToString("0.#", inv)}%");
 
 			// Flipped comparison, same as TryCheckDuplicate
 			bool flipped = false;
-			if (Settings.CompareHorizontallyFlipped) {
+			if (!Settings.AiOnlyMatching && Settings.CompareHorizontallyFlipped) {
 				byte[]?[] flippedGray = CreateFlippedGrayBytes(a);
 				ulong[]? flippedPHashes = usePHash ? ComputePHashesFromGray(flippedGray) : null;
 				if (CheckIfDuplicate(a, flippedGray, flippedPHashes, b, out float flippedDifference)) {
@@ -360,7 +371,7 @@ namespace VDF.Core {
 			}
 			else {
 				sb.AppendLine("FAIL — the similarity is below the configured minimum.");
-				failures.Add($"Visual similarity is {FormatSimilarity(similarity)} but at least {Settings.Percent.ToString("0.#", inv)}% is required.");
+				failures.Add($"Visual similarity is {FormatSimilarity(similarity)} but at least {(Settings.AiOnlyMatching ? Settings.AiPercent : Settings.Percent).ToString("0.#", inv)}% is required.");
 				if (!float.IsNaN(similarity) && similarity > 0f)
 					hints.Add($"Lower the minimum similarity below {FormatSimilarity(similarity)} to catch this pair — but beware of false positives at low values.");
 				if (usePHash) {
@@ -398,7 +409,7 @@ namespace VDF.Core {
 			// ── Partial clip detection ──────────────────────────────────────
 			// The real scan only runs this phase for files not already grouped visually,
 			// so the test mirrors that and only checks when the pair was not detected.
-			if (!detected && !a.IsImage && Settings.EnablePartialClipDetection)
+			if (!detected && !a.IsImage && Settings.AudioPartialDetectionEnabled)
 				detected = TestPartialClipPair(sb, a, b, failures, hints, FormatSimilarity, FormatSeconds);
 
 			AppendVerdict(sb, detected, failures, hints, scanInclusionIssues, flipped ? "flipped match" : null);

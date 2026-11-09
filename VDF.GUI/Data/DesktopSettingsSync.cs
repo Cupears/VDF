@@ -52,6 +52,7 @@ internal sealed class DesktopSettingsSync {
             CombineGrayscaleAndPHash = gui.CombineGrayPHash,
             PHashRequiredMatchingSampleRatio = gui.PHashSampleRatioPercent / 100f,
             UseAiMatching = gui.UseAiMatching,
+            AiOnlyMatching = gui.AiOnlyMatching,
             AiPercent = gui.AiPercent,
             EnableAiPartialDetection = gui.EnableAiPartialDetection,
             AiPartialHitPercent = gui.AiPartialHitPercent,
@@ -118,7 +119,8 @@ internal sealed class DesktopSettingsSync {
         gui.UsePHash = scan.UsePHashing;
         gui.CombineGrayPHash = scan.CombineGrayscaleAndPHash;
         gui.PHashSampleRatioPercent = scan.PHashRequiredMatchingSampleRatio * 100f;
-        gui.UseAiMatching = scan.UseAiMatching;
+        gui.UseAiMatching = scan.AiMatchingEnabled;
+        gui.AiOnlyMatching = scan.AiOnlyMatching;
         gui.AiPercent = scan.AiPercent;
         gui.EnableAiPartialDetection = scan.EnableAiPartialDetection;
         gui.AiPartialHitPercent = scan.AiPartialHitPercent;

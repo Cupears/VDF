@@ -468,6 +468,7 @@ namespace VDF.GUI.ViewModels {
 					or nameof(SettingsFile.IgnoreWhitePixels)
 					or nameof(SettingsFile.EnablePartialClipDetection)
 					or nameof(SettingsFile.UseAiMatching)
+					or nameof(SettingsFile.AiOnlyMatching)
 					or nameof(SettingsFile.EnableAiPartialDetection))
 					RefreshScanProfileSelection();
 			};
@@ -1795,6 +1796,7 @@ Non-Windows setup:
 			Scanner.Settings.CombineGrayscaleAndPHash = SettingsFile.Instance.CombineGrayPHash;
 			Scanner.Settings.PHashRequiredMatchingSampleRatio = SettingsFile.Instance.PHashSampleRatioPercent / 100f;
 			Scanner.Settings.UseAiMatching = SettingsFile.Instance.UseAiMatching;
+			Scanner.Settings.AiOnlyMatching = SettingsFile.Instance.AiOnlyMatching;
 			Scanner.Settings.AiPercent = SettingsFile.Instance.AiPercent;
 			Scanner.Settings.EnableAiPartialDetection = SettingsFile.Instance.EnableAiPartialDetection;
 			Scanner.Settings.AiPartialHitPercent = SettingsFile.Instance.AiPartialHitPercent;

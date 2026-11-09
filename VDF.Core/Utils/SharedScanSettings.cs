@@ -14,7 +14,7 @@ public sealed class SharedScanSettings {
         "ExtendedFFToolsLogging", "LogExcludedFiles", "AlwaysRetryFailedSampling", "IncludeVeryDarkPhotos", "CustomFFArguments", "UseNativeFfmpegBinding", "HardwareAccelerationMode",
         "IgnoreBlackPixels", "IgnoreWhitePixels", "CompareHorizontallyFlipped", "DatabaseCheckpointIntervalMinutes", "IncludeNonExistingFiles", "RememberDeletedContent",
         "FilterByFilePathContains", "FilePathContainsTexts", "FilterByFilePathNotContains", "FilePathNotContainsTexts", "ScanAgainstEntireDatabase", "FolderMatchMode", "SameFolderDepth",
-        "UsePHashing", "CombineGrayscaleAndPHash", "PHashRequiredMatchingSampleRatio", "UseAiMatching", "AiPercent", "EnableAiPartialDetection", "AiPartialHitPercent",
+        "UsePHashing", "CombineGrayscaleAndPHash", "PHashRequiredMatchingSampleRatio", "UseAiMatching", "AiOnlyMatching", "AiPercent", "EnableAiPartialDetection", "AiPartialHitPercent",
         "UseExifCreationDate", "FilterByFileSize", "MaximumFileSize", "MinimumFileSize", "EnablePartialClipDetection", "PartialClipMinRatio",
         "PartialClipSimilarityThreshold", "PartialClipRequireVisualMatch", "PartialClipVisualThreshold"
     ];
@@ -85,7 +85,7 @@ public sealed class SharedScanSettings {
         d.FilterByFilePathNotContains = s.FilterByFilePathNotContains; d.FilePathNotContainsTexts = new(s.FilePathNotContainsTexts);
         d.ScanAgainstEntireDatabase = s.ScanAgainstEntireDatabase; d.FolderMatchMode = s.FolderMatchMode; d.SameFolderDepth = s.SameFolderDepth;
         d.UsePHashing = s.UsePHashing; d.CombineGrayscaleAndPHash = s.CombineGrayscaleAndPHash; d.PHashRequiredMatchingSampleRatio = s.PHashRequiredMatchingSampleRatio;
-        d.UseAiMatching = s.UseAiMatching; d.AiPercent = s.AiPercent; d.EnableAiPartialDetection = s.EnableAiPartialDetection; d.AiPartialHitPercent = s.AiPartialHitPercent;
+        d.UseAiMatching = s.UseAiMatching; d.AiOnlyMatching = s.AiOnlyMatching; d.AiPercent = s.AiPercent; d.EnableAiPartialDetection = s.EnableAiPartialDetection; d.AiPartialHitPercent = s.AiPartialHitPercent;
         d.UseExifCreationDate = s.UseExifCreationDate; d.FilterByFileSize = s.FilterByFileSize; d.MaximumFileSize = s.MaximumFileSize; d.MinimumFileSize = s.MinimumFileSize;
         d.EnablePartialClipDetection = s.EnablePartialClipDetection; d.PartialClipMinRatio = s.PartialClipMinRatio; d.PartialClipSimilarityThreshold = s.PartialClipSimilarityThreshold;
         d.PartialClipRequireVisualMatch = s.PartialClipRequireVisualMatch; d.PartialClipVisualThreshold = s.PartialClipVisualThreshold;
