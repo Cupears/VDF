@@ -31,6 +31,7 @@ namespace VDF.GUI.Views {
 	public partial class DuplicateResultsView : UserControl {
 		public DuplicateResultsView() {
 			AvaloniaXamlLoader.Load(this);
+			ResultsListControl.LayoutUpdated += (_, _) => UpdateStickyGroupHeader();
 			DataContextChanged += (_, _) => WireViewModel();
 			WireViewModel();
 			if (this.FindControl<Button>("AutoSelectButton")?.Flyout is MenuFlyout autoSelectFlyout)
@@ -154,6 +155,8 @@ namespace VDF.GUI.Views {
 		}
 
 		void OnResultsRowsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
+			if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+				HideStickyGroupHeader();
 			if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset ||
 				e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
 				Avalonia.Threading.Dispatcher.UIThread.Post(RefreshVisibleThumbnails, Avalonia.Threading.DispatcherPriority.Loaded);
@@ -309,8 +312,10 @@ namespace VDF.GUI.Views {
 					SyncHeaderInset();
 				// Lazy thumbnails follow what the user can actually see: load (and prefetch
 				// a margin around) the rows realized as the list scrolls or resizes.
-				if (args.Property == ScrollViewer.OffsetProperty || args.Property == ScrollViewer.ViewportProperty)
+				if (args.Property == ScrollViewer.OffsetProperty || args.Property == ScrollViewer.ViewportProperty) {
 					RefreshVisibleThumbnailsDebounced();
+					QueueStickyGroupHeaderUpdate();
+				}
 			};
 			if (!headerInsetHooked && this.FindControl<Border>("ColumnHeaderStrip") is { } header) {
 				headerInsetHooked = true;

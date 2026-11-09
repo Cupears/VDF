@@ -433,13 +433,16 @@ input.input-invalid:focus { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
 	border: 1px solid var(--border-subtle);
 	border-radius: 10px;
 	margin-bottom: 1.25rem;
-	overflow: hidden;
+	overflow: clip;
 	box-shadow: var(--shadow-sm);
 	transition: box-shadow 0.15s;
 }
 .dup-group:hover { box-shadow: var(--shadow-md); }
 
 .dup-group-header {
+	position: sticky;
+	top: 52px;
+	z-index: 20;
 	background: var(--bg-surface-raised);
 	padding: 0.6rem 1rem;
 	font-size: 12px;
