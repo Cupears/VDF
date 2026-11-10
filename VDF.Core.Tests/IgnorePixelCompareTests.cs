@@ -77,6 +77,28 @@ public class IgnorePixelCompareTests : IDisposable {
 	// above the 95% threshold). Non-black pixels only: 16/256 = 6.25% (93.75%, below it).
 
 	[Fact]
+	public void CachedWhiteBackgroundImagesAreRegroupedByTheirContentWithoutAi() {
+		static byte[] Drawing(int start) {
+			var frame = Enumerable.Repeat((byte)255, FrameLength).ToArray();
+			Array.Fill(frame, (byte)0, start, 18);
+			frame[1000] = 0;
+			return frame;
+		}
+		var a = Add("white-a.jpg", Drawing(200), 1);
+		var b = Add("white-b.jpg", Drawing(600), 2);
+		a.IsImage = b.IsImage = true;
+		a.grayBytes.Clear(); b.grayBytes.Clear();
+		a.grayBytes[0] = Drawing(200); b.grayBytes[0] = Drawing(600);
+		var engine = NewEngine(ignoreBlack: false, ignoreWhite: false);
+		engine.Settings.Percent = 96;
+		engine.ScanForDuplicates();
+		Assert.Empty(engine.Duplicates);
+		b.grayBytes[0] = (byte[])a.grayBytes[0]!.Clone();
+		engine.ScanForDuplicates();
+		Assert.Equal(2, engine.Duplicates.Count);
+	}
+
+	[Fact]
 	public void IgnoreBlackPixels_Off_SharedBlackAreasProduceTheMatch() {
 		Add("a.mp4", HalfFrame(0x00, 0x80), 1);
 		Add("b.mp4", HalfFrame(0x00, 0x90), 2);

@@ -283,7 +283,7 @@ public class GrayBytesUtilsTests {
 					isValid = img1[i] > BlackPixelLimit && img2[i] > BlackPixelLimit;
 				if (!isValid) continue;
 				if (ignoreWhitePixels)
-					isValid = img1[i] < WhitePixelLimit && img2[i] < WhitePixelLimit;
+					isValid = img1[i] < WhitePixelLimit || img2[i] < WhitePixelLimit;
 				if (!isValid) continue;
 				diff += Math.Abs(img1[i] - img2[i]);
 				counter++;

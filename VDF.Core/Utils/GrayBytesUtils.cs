@@ -124,8 +124,9 @@ namespace VDF.Core.Utils {
 						// ⇔ SubtractSaturate(v, whiteMinus1) == 0.
 						var v1NotWhite = Avx2.CompareEqual(Avx2.SubtractSaturate(v1, whiteMinus1), zero);
 						var v2NotWhite = Avx2.CompareEqual(Avx2.SubtractSaturate(v2, whiteMinus1), zero);
-						var bothNotWhite = Avx2.And(v1NotWhite, v2NotWhite);
-						validMask = Avx2.And(validMask, bothNotWhite);
+						// Only white-versus-white is background. Ink against white is a real difference.
+						var eitherNotWhite = Avx2.Or(v1NotWhite, v2NotWhite);
+						validMask = Avx2.And(validMask, eitherNotWhite);
 					}
 
 					var v1Masked = Avx2.And(v1, validMask);
@@ -147,7 +148,7 @@ namespace VDF.Core.Utils {
 						isValid = img1[i] > blackPixelLimit && img2[i] > blackPixelLimit;
 					if (!isValid) continue;
 					if (ignoreWhitePixels)
-						isValid = img1[i] < whitePixelLimit && img2[i] < whitePixelLimit;
+						isValid = img1[i] < whitePixelLimit || img2[i] < whitePixelLimit;
 					if (!isValid) continue;
 					diff += Math.Abs(img1[i] - img2[i]);
 					counter++;
@@ -156,6 +157,14 @@ namespace VDF.Core.Utils {
 
 			return (float)diff / counter / brightnessScalePerPixel;
 		}
+		internal static bool HasMostlyWhiteBackground(byte[] gray) {
+			int required = (gray.Length * 3 + 3) / 4;
+			int white = 0;
+			foreach (byte pixel in gray)
+				if (pixel >= WhitePixelLimit && ++white >= required) return true;
+			return false;
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe float PercentageDifference(byte[] img1, byte[] img2) {
 			ThrowIfLengthMismatch(img1, img2);

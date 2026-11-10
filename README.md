@@ -64,6 +64,10 @@ CLI: `--ai-matching`, `--ai-percent`, `--ai-partial`, `--ai-partial-hit-percent`
 
 ---
 
+### Pictures with white backgrounds
+
+When both pictures are at least 75% near-white, classic image matching also requires their visible content to meet the similarity threshold. A shared blank canvas cannot inflate the score. The Ignore White Pixels option skips only locations that are white in both pictures; ink against white remains a difference. Existing image fingerprints are reused; run another scan to rebuild previously saved groups.
+
 ### AI-only matching
 
 Enable **AI only (skip grayscale and pHash)** under Settings → Matching on desktop, or **AI only** on the web Settings page. This enables AI matching and uses its similarity threshold. Turning the mode off restores the saved classic matching choices. Audio clip matching is skipped in this mode; optional AI visual clip matching still works.

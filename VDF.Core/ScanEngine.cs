@@ -1475,6 +1475,7 @@ namespace VDF.Core {
 					|| imageGray.Length != GrayBytesUtils.Side * GrayBytesUtils.Side)
 					return false;
 				entry.compareGray = new[] { imageGray };
+				entry.compareMostlyWhite = GrayBytesUtils.HasMostlyWhiteBackground(imageGray);
 				if (Settings.AiMatchingEnabled)
 					BuildAiCompareSnapshot(entry, new[] { (double)0 }, entry.compareGray);
 				return true;
@@ -1617,7 +1618,17 @@ namespace VDF.Core {
 				difference = ignoreBlackPixels || ignoreWhitePixels ?
 								GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(grayBytes[0]!, compItem.compareGray![0]!, ignoreBlackPixels, ignoreWhitePixels, blackThreshold, whiteThreshold) :
 								GrayBytesUtils.PercentageDifference(grayBytes[0]!, compItem.compareGray![0]!);
-				bool isImageDuplicate = difference <= 1.0f - Settings.Percent / 100f;
+				float imageLimit = 1.0f - Settings.Percent / 100f;
+				if (difference <= imageLimit && !ignoreWhitePixels && !ignoreBlackPixels &&
+					(entry.compareMostlyWhite ??= GrayBytesUtils.HasMostlyWhiteBackground(grayBytes[0]!)) &&
+					(compItem.compareMostlyWhite ??= GrayBytesUtils.HasMostlyWhiteBackground(compItem.compareGray![0]!))) {
+					// Shared blank canvas must not make unrelated sparse drawings look identical.
+					// Require the ink/content to pass too; never add matches the full frame rejected.
+					float contentDifference = GrayBytesUtils.PercentageDifferenceWithoutSpecificPixels(
+						grayBytes[0]!, compItem.compareGray![0]!, false, true);
+					difference = Math.Max(difference, contentDifference);
+				}
+				bool isImageDuplicate = difference <= imageLimit;
 				// Images always compare by grayscale (single frame; the pHash quorum has
 				// nothing to vote over) — in combined mode the badge says so honestly.
 				if (isImageDuplicate && Settings.CombineGrayscaleAndPHash)
@@ -2096,6 +2107,7 @@ namespace VDF.Core {
 			// owned by entry.grayBytes, only the alignment wrappers are dropped.
 			foreach (FileEntry entry in ScanList) {
 				entry.compareGray = null;
+				entry.compareMostlyWhite = null;
 				entry.comparePHashes = null;
 				entry.compareEmbeddings = null;
 				entry.compareEmbeddingValid = null;

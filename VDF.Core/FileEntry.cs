@@ -105,6 +105,9 @@ namespace VDF.Core {
 		// for every candidate pair.
 		[MemoryPackIgnore]
 		internal byte[]?[]? compareGray;
+		// Computed once per image comparison snapshot, never saved in the library.
+		[MemoryPackIgnore]
+		internal bool? compareMostlyWhite;
 		[MemoryPackIgnore]
 		internal ulong[]? comparePHashes;
 		// AI-pass snapshot, aligned like compareGray: the entry's quantized embeddings and,
